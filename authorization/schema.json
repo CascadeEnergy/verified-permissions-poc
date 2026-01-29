@@ -1,0 +1,109 @@
+{
+  "Gazebo": {
+    "entityTypes": {
+      "User": {
+        "shape": {
+          "type": "Record",
+          "attributes": {
+            "email": { "type": "String", "required": false }
+          }
+        },
+        "memberOfTypes": ["RoleGroup"]
+      },
+      "RoleGroup": {
+        "shape": {
+          "type": "Record",
+          "attributes": {
+            "name": { "type": "String", "required": false }
+          }
+        }
+      },
+      "Organization": {
+        "shape": {
+          "type": "Record",
+          "attributes": {
+            "name": { "type": "String", "required": false }
+          }
+        }
+      },
+      "Region": {
+        "shape": {
+          "type": "Record",
+          "attributes": {
+            "name": { "type": "String", "required": false }
+          }
+        },
+        "memberOfTypes": ["Organization"]
+      },
+      "Site": {
+        "shape": {
+          "type": "Record",
+          "attributes": {
+            "name": { "type": "String", "required": false }
+          }
+        },
+        "memberOfTypes": ["Region", "Organization"]
+      },
+      "Project": {
+        "shape": {
+          "type": "Record",
+          "attributes": {
+            "name": { "type": "String", "required": false },
+            "createdBy": { "type": "Entity", "name": "User", "required": false }
+          }
+        },
+        "memberOfTypes": ["Site"]
+      },
+      "Model": {
+        "shape": {
+          "type": "Record",
+          "attributes": {
+            "name": { "type": "String", "required": false },
+            "createdBy": { "type": "Entity", "name": "User", "required": false }
+          }
+        },
+        "memberOfTypes": ["Site"]
+      },
+      "Module": {
+        "shape": {
+          "type": "Record",
+          "attributes": {
+            "name": { "type": "String", "required": false }
+          }
+        }
+      }
+    },
+    "actions": {
+      "View": {
+        "appliesTo": {
+          "principalTypes": ["User"],
+          "resourceTypes": ["Site", "Project", "Model", "Module", "Organization", "Region"]
+        }
+      },
+      "Edit": {
+        "appliesTo": {
+          "principalTypes": ["User"],
+          "resourceTypes": ["Site", "Project", "Model"]
+        }
+      },
+      "Create": {
+        "appliesTo": {
+          "principalTypes": ["User"],
+          "resourceTypes": ["Site"]
+        }
+      },
+      "Delete": {
+        "appliesTo": {
+          "principalTypes": ["User"],
+          "resourceTypes": ["Site", "Project", "Model"]
+        }
+      },
+      "Admin": {
+        "appliesTo": {
+          "principalTypes": ["User"],
+          "resourceTypes": ["Site", "Organization"]
+        }
+      }
+    }
+  }
+}

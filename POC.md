@@ -50,50 +50,47 @@ A self-contained POC to demonstrate AWS Verified Permissions with Gazebo-like pe
 
 ```
 verified-permissions-poc/
-├── frontend/                    # React + Vite app
-│   ├── src/
-│   │   ├── components/
-│   │   │   ├── PermissionManager.tsx    # Assign/remove roles UI
-│   │   │   ├── AuthChecker.tsx          # Test authorization decisions
-│   │   │   ├── EntityViewer.tsx         # View current entities
-│   │   │   ├── ScenarioRunner.tsx       # Run test scenarios
-│   │   │   └── PolicyViewer.tsx         # View Cedar policies
-│   │   ├── api/
-│   │   │   └── client.ts                # API client
-│   │   ├── types/
-│   │   │   └── gazebo.ts                # TypeScript types
-│   │   ├── App.tsx
-│   │   └── main.tsx
-│   ├── index.html
-│   ├── vite.config.ts
-│   └── package.json
-│
-├── infrastructure/              # CDK infrastructure
-│   ├── lib/
-│   │   ├── policy-store-stack.ts        # AVP Policy Store + policies
-│   │   ├── api-stack.ts                 # API Gateway + Lambdas
-│   │   └── frontend-stack.ts            # S3 + CloudFront (optional)
-│   ├── bin/
-│   │   └── app.ts
-│   └── package.json
-│
-├── lambdas/                     # Lambda function code
-│   ├── permissions-api/
-│   │   └── index.ts                     # CRUD for role assignments
-│   ├── authorize-api/
-│   │   └── index.ts                     # Authorization checks
-│   └── shared/
-│       ├── avp-client.ts                # Verified Permissions client
-│       ├── entities.ts                  # Entity builders
-│       └── types.ts                     # Shared types
+├── packages/
+│   ├── frontend/                    # React + Vite app
+│   │   ├── src/
+│   │   │   ├── components/
+│   │   │   │   ├── PermissionManager.tsx    # Assign/remove roles UI
+│   │   │   │   ├── AuthChecker.tsx          # Test authorization decisions
+│   │   │   │   ├── EntityViewer.tsx         # View current entities
+│   │   │   │   ├── ScenarioRunner.tsx       # Run test scenarios
+│   │   │   │   └── PolicyViewer.tsx         # View Cedar policies
+│   │   │   ├── api/
+│   │   │   │   └── client.ts                # API client
+│   │   │   ├── types/
+│   │   │   │   └── gazebo.ts                # TypeScript types
+│   │   │   ├── App.tsx
+│   │   │   └── main.tsx
+│   │   ├── index.html
+│   │   ├── vite.config.ts
+│   │   └── package.json
+│   │
+│   ├── infra/                       # CDK infrastructure
+│   │   ├── lib/
+│   │   │   └── poc-stack.ts             # Policy Store + API Gateway + Lambdas
+│   │   ├── bin/
+│   │   │   └── app.ts
+│   │   └── package.json
+│   │
+│   └── lambdas/                     # Lambda function code
+│       ├── permissions-api/
+│       │   └── index.ts                     # CRUD for role assignments
+│       ├── authorize-api/
+│       │   └── index.ts                     # Authorization checks
+│       └── shared/
+│           ├── entities.ts                  # Entity builders
+│           └── types.ts                     # Shared types
 │
 ├── authorization/               # Cedar policies and schema
 │   ├── schema.json                      # Gazebo-like schema
 │   └── policies/
 │       ├── global-admin.cedar
 │       ├── site-roles.cedar
-│       ├── creator-privilege.cedar
-│       └── module-access.cedar
+│       └── creator-privilege.cedar
 │
 ├── PLAN.md
 ├── POC.md                       # This file
@@ -302,7 +299,7 @@ permit (
 ## Lambda: permissions-api
 
 ```typescript
-// lambdas/permissions-api/index.ts
+// packages/lambdas/permissions-api/index.ts
 import {
   VerifiedPermissionsClient,
   CreatePolicyCommand,
@@ -422,7 +419,7 @@ export const handler: APIGatewayProxyHandlerV2 = async (event) => {
 ## Lambda: authorize-api
 
 ```typescript
-// lambdas/authorize-api/index.ts
+// packages/lambdas/authorize-api/index.ts
 import {
   VerifiedPermissionsClient,
   IsAuthorizedCommand,
@@ -617,7 +614,7 @@ function buildEntities(req: AuthRequest) {
 ### PermissionManager.tsx
 Assign roles to users:
 ```tsx
-// frontend/src/components/PermissionManager.tsx
+// packages/frontend/src/components/PermissionManager.tsx
 import { useState } from "react";
 import { api } from "../api/client";
 
@@ -688,7 +685,7 @@ export function PermissionManager() {
 ### AuthChecker.tsx
 Test authorization decisions:
 ```tsx
-// frontend/src/components/AuthChecker.tsx
+// packages/frontend/src/components/AuthChecker.tsx
 import { useState } from "react";
 import { api } from "../api/client";
 
@@ -797,7 +794,7 @@ export function AuthChecker() {
 ### ScenarioRunner.tsx
 Pre-built test scenarios:
 ```tsx
-// frontend/src/components/ScenarioRunner.tsx
+// packages/frontend/src/components/ScenarioRunner.tsx
 import { useState } from "react";
 import { api } from "../api/client";
 
@@ -893,7 +890,7 @@ export function ScenarioRunner() {
 ## CDK Infrastructure
 
 ```typescript
-// infrastructure/lib/poc-stack.ts
+// packages/infra/lib/poc-stack.ts
 import * as cdk from "aws-cdk-lib";
 import * as verifiedpermissions from "aws-cdk-lib/aws-verifiedpermissions";
 import * as lambda from "aws-cdk-lib/aws-lambda";
@@ -911,7 +908,7 @@ export class PocStack extends cdk.Stack {
 
     // Load Cedar schema
     const schema = JSON.parse(
-      fs.readFileSync(path.join(__dirname, "../../authorization/schema.json"), "utf-8")
+      fs.readFileSync(path.join(__dirname, "../../../authorization/schema.json"), "utf-8")
     );
 
     // Create Policy Store
@@ -922,7 +919,7 @@ export class PocStack extends cdk.Stack {
     });
 
     // Load and create Cedar policies
-    const policiesDir = path.join(__dirname, "../../authorization/policies");
+    const policiesDir = path.join(__dirname, "../../../authorization/policies");
     const policyFiles = fs.readdirSync(policiesDir).filter((f) => f.endsWith(".cedar"));
 
     policyFiles.forEach((file, index) => {
