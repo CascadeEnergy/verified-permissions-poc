@@ -69,7 +69,441 @@ forbid (
 
 ---
 
-## 2. Best Practices for Storing Cedar Policies
+## 2. Current Gazebo Permission System
+
+### Overview
+
+Gazebo uses a **graph-based permission system** stored in AWS OpenSearch with two services:
+
+| Service | Purpose | Status |
+|---------|---------|--------|
+| **permission-service** | Write operations, relationship CRUD, effective permission computation | Active (source of truth for writes) |
+| **authorization-service** | Fast cached reads, transitive closure computation | Active but problematic (cache sync issues) |
+
+### Architecture Diagram
+
+```
+┌─────────────────┐     ┌─────────────────────┐     ┌──────────────────────────┐
+│  Admin / Apps   │────▶│  permission-service │────▶│  OpenSearch (Write)      │
+│  (Writes)       │     │  (Port 9000)        │     │  - permissions-object    │
+└─────────────────┘     └─────────────────────┘     │  - permissions-relationship│
+                                                    │  - permissions-role       │
+┌─────────────────┐     ┌─────────────────────┐     └──────────────────────────┘
+│  Apps / Gateway │────▶│ authorization-service│────▶│  OpenSearch (Read)       │
+│  (Reads)        │     │  (Port 9000)        │     │  (same indices, read-only)│
+└─────────────────┘     │  + In-Memory Cache  │     └──────────────────────────┘
+                        └─────────────────────┘
+```
+
+### Data Model
+
+**Object Types (Vertices):**
+- `user` - Individual users
+- `organization` / `company` - Business entities
+- `region` - Geographic regions
+- `site` - Individual locations
+- `roleGroup` - Role collections (e.g., "accountManager", "globalAdmin")
+- `module` - UI modules (e.g., "measurable-www", "project-www")
+- `measurable` - Data collection points
+- `project` / `project-task` - Projects and tasks
+- `document` / `resource` - Files and resources
+
+**Relationship Structure (Edges):**
+```javascript
+{
+  source: { type: "user", id: "1000962" },
+  target: { type: "site", id: "1360" },
+  roleList: ["accountManager", "coordinator"]  // User's roles at this location
+}
+```
+
+> **Note:** The legacy system also has `permissionMap` with bitmasks, but the new system will be purely role-based. Roles define what actions are allowed.
+
+**Standard Roles:**
+- `globalAdmin` - Full system admin (Gazebo team)
+- `administrator` - Full admin + proxy at location
+- `coordinator` - Limited admin, create/edit all
+- `accountManager` - Full admin at assigned locations
+- `facilitator` - Create projects, overwrite data
+- `champion` - Edit projects, upload data
+- `contributor` - Edit projects, view models
+- `viewer` - Read-only
+
+### permission-service (Writes)
+
+**Key Endpoints:**
+```
+PUT  /permission/relationship/{sourceType}/{sourceId}/{targetType}/{targetId}
+DELETE /permission/relationship/{sourceType}/{sourceId}/{targetType}/{targetId}
+PUT  /permission/object/{type}/{id}
+DELETE /permission/object/{type}/{id}
+PUT  /permission/role/{roleId}
+DELETE /permission/role/{roleId}
+GET  /permission/{sourceType}/{sourceId}  (effective permissions - slow)
+```
+
+**How Permissions Are Created:**
+1. User Admin assigns role to user at a location
+2. Calls `PUT /permission/relationship/user/{userId}/site/{siteId}` with roleList
+3. Bulk upserts: relationship + source object + target object
+4. Uses `wait_for_active_shards: "all"` for consistency
+
+**Key Libraries Used:**
+- `hapi-gazebo-auth` - Augments requests with auth info
+- `gazebo-hapi-chassis` - Enforces Module permissions on endpoints
+
+### authorization-service (Cached Reads)
+
+**Key Endpoints:**
+```
+GET /authorization/v1/{sourceType}/{sourceId}
+GET /authorization/v1/{sourceType}/{sourceId}/{targetType}
+GET /authorization/v1/{sourceType}/{sourceId}/{targetType}/{targetId}
+GET /authorization/v1/roles/{sourceType}/{sourceId}/{targetType}/{targetId}
+GET /authorization/v1/site-users/{siteId}  (inverse lookup)
+```
+
+**Transitive Closure Algorithm:**
+1. Start at source (e.g., `user:123`) with full permissions (255)
+2. BFS traversal through permission graph
+3. At each edge: `effective = (local & limiting) | rolePermissions`
+4. Track visited nodes to prevent cycles
+5. Multiple paths to same target: OR permissions together
+6. Stop at terminal types (`measurable`, `project-task`)
+
+**Caching Strategy:**
+- In-memory cache of entire permission graph
+- Polls OpenSearch refresh counter every 2.5 seconds
+- `consistent=true` blocks until cache refreshed
+- `consistent=false` returns stale data, refreshes in background
+
+**Current Problems:**
+1. **Cache sync across tasks** - Each ECS task has its own cache, can diverge
+2. **Slow initial load** - Must scroll through entire OpenSearch index
+3. **Memory pressure** - Full graph in memory per task
+4. **Stale reads** - 2.5s polling window + propagation delay
+
+---
+
+## 3. Mapping Current System to Cedar/Verified Permissions
+
+### Conceptual Mapping
+
+| Current Concept | Cedar Equivalent |
+|-----------------|------------------|
+| User | Principal (Entity type: `User`) |
+| Site, Organization, etc. | Resource (Entity types) |
+| Role (administrator, viewer) | Group membership + role-based policies |
+| roleList on relationships | User membership in RoleGroup entities |
+| Relationship graph traversal | Cedar's `in` hierarchy + policies |
+| Module access | Action groups or separate resource type |
+
+### Entity Hierarchy in Cedar
+
+```
+// Current: user → organization → region → site → measurable
+// Cedar equivalent using parent relationships:
+
+User::"user-123"
+  in RoleGroup::"accountManager"
+  in Organization::"org-456"
+
+Site::"site-789"
+  in Region::"region-012"
+  in Organization::"org-456"
+
+Measurable::"meas-111"
+  in Site::"site-789"
+```
+
+### Sample Cedar Schema for Gazebo
+
+```json
+{
+    "Gazebo": {
+    "entityTypes": {
+      "User": {
+        "shape": {
+          "type": "Record",
+          "attributes": {
+            "email": { "type": "String" },
+            "createdAt": { "type": "String" }
+          }
+        },
+        "memberOfTypes": ["RoleGroup", "Organization", "Region", "Site"]
+      },
+      "RoleGroup": {
+        "shape": {
+          "type": "Record",
+          "attributes": {
+            "name": { "type": "String" },
+            "description": { "type": "String" }
+          }
+        },
+        "memberOfTypes": ["Module"]
+      },
+      "Organization": {
+        "memberOfTypes": []
+      },
+      "Region": {
+        "memberOfTypes": ["Organization"]
+      },
+      "Site": {
+        "shape": {
+          "type": "Record",
+          "attributes": {
+            "name": { "type": "String" }
+          }
+        },
+        "memberOfTypes": ["Region", "Organization"]
+      },
+      "Measurable": {
+        "shape": {
+          "type": "Record",
+          "attributes": {
+            "createdBy": { "type": "Entity", "name": "User" }
+          }
+        },
+        "memberOfTypes": ["Site"]
+      },
+      "Project": {
+        "shape": {
+          "type": "Record",
+          "attributes": {
+            "createdBy": { "type": "Entity", "name": "User" },
+            "status": { "type": "String" }
+          }
+        },
+        "memberOfTypes": ["Site"]
+      },
+      "Module": {
+        "shape": {
+          "type": "Record",
+          "attributes": {
+            "name": { "type": "String" }
+          }
+        }
+      }
+    },
+    "actions": {
+      "Read": {
+        "appliesTo": {
+          "principalTypes": ["User"],
+          "resourceTypes": ["Site", "Measurable", "Project", "Module"]
+        }
+      },
+      "Write": {
+        "appliesTo": {
+          "principalTypes": ["User"],
+          "resourceTypes": ["Site", "Measurable", "Project"]
+        }
+      },
+      "Admin": {
+        "appliesTo": {
+          "principalTypes": ["User"],
+          "resourceTypes": ["Site", "Measurable", "Project"]
+        }
+      },
+      "CreateModel": {
+        "appliesTo": {
+          "principalTypes": ["User"],
+          "resourceTypes": ["Site"]
+        }
+      },
+      "CreateProject": {
+        "appliesTo": {
+          "principalTypes": ["User"],
+          "resourceTypes": ["Site"]
+        }
+      }
+    }
+  }
+}
+```
+
+### Sample Cedar Policies for Gazebo
+
+```cedar
+// ============================================
+// GLOBAL ADMIN - Trump card
+// ============================================
+permit (
+    principal in Gazebo::RoleGroup::"globalAdmin",
+    action,
+    resource
+);
+
+// ============================================
+// ROLE-BASED POLICIES
+// ============================================
+
+// Administrators can do anything at their assigned locations
+permit (
+    principal,
+    action,
+    resource in Gazebo::Site::"*"
+) when {
+    principal in resource &&
+    principal.hasRole(resource, "administrator")
+};
+
+// Coordinators: limited admin, create/edit all objects
+permit (
+    principal,
+    action in [Gazebo::Action::"Read", Gazebo::Action::"Write", Gazebo::Action::"CreateModel", Gazebo::Action::"CreateProject"],
+    resource
+) when {
+    principal in resource.site &&
+    principal.hasRole(resource.site, "coordinator")
+};
+
+// Contributors: edit projects, view models
+permit (
+    principal,
+    action == Gazebo::Action::"Read",
+    resource
+) when {
+    principal in resource.site &&
+    principal.hasRole(resource.site, "contributor")
+};
+
+permit (
+    principal,
+    action == Gazebo::Action::"Write",
+    resource is Gazebo::Project
+) when {
+    principal in resource.site &&
+    principal.hasRole(resource.site, "contributor")
+};
+
+// Viewers: read-only
+permit (
+    principal,
+    action == Gazebo::Action::"Read",
+    resource
+) when {
+    principal in resource.site &&
+    principal.hasRole(resource.site, "viewer")
+};
+
+// ============================================
+// CREATOR PRIVILEGE
+// ============================================
+// "If you created it, you can edit it"
+permit (
+    principal,
+    action in [Gazebo::Action::"Read", Gazebo::Action::"Write"],
+    resource
+) when {
+    resource has createdBy &&
+    resource.createdBy == principal
+};
+
+// ============================================
+// MODULE ACCESS
+// ============================================
+permit (
+    principal,
+    action == Gazebo::Action::"Read",
+    resource is Gazebo::Module
+) when {
+    principal in resource
+};
+```
+
+### What Changes With Verified Permissions
+
+| Aspect | Current | With Verified Permissions |
+|--------|---------|---------------------------|
+| **Permission model** | Bitmasks + roles (complex) | Pure role-based (simple) |
+| **Read latency** | 10-200ms (cache dependent) | ~10-50ms (AWS managed) |
+| **Cache consistency** | Problematic (per-task caches) | Strongly consistent |
+| **Write latency** | Same (OpenSearch) | Milliseconds (AVP API) |
+| **Graph traversal** | Custom BFS code | Built into Cedar `in` |
+| **Policy logic** | Hardcoded in services | Declarative Cedar policies |
+| **Auditability** | Manual logging | Built-in CloudTrail |
+
+### What Needs to Stay
+
+1. **permission-service write endpoints** - Still needed to:
+   - Create/update user role assignments
+   - Sync to Verified Permissions (new responsibility)
+   - Maintain backward compatibility during migration
+
+2. **User Admin UI** - Unchanged, calls permission-service
+
+3. **Site/Org hierarchy management** - Needs to sync to AVP entities
+
+### What Can Be Retired
+
+1. **authorization-service** - Replace with direct AVP calls
+2. **In-memory permission caching** - AVP handles this
+3. **Custom transitive closure code** - Cedar `in` operator
+4. **OpenSearch read indices** - Eventually (after full migration)
+
+---
+
+## 4. Migration Strategy
+
+### Phase 1: Dual-Write Setup
+```
+User Admin
+    ↓
+permission-service
+    ├─→ OpenSearch (existing)
+    └─→ Verified Permissions (new - sync relationships)
+```
+
+- Modify permission-service to dual-write
+- Create AVP Policy Store with Cedar schema
+- Deploy static Cedar policies
+- No consumer changes yet
+
+### Phase 2: Shadow Mode
+```
+App Request
+    ├─→ authorization-service (primary, returns response)
+    └─→ Verified Permissions (shadow, log comparison)
+```
+
+- Add AVP calls alongside existing auth checks
+- Compare results, log discrepancies
+- Fix policy/data issues
+- Build confidence in parity
+
+### Phase 3: Gradual Cutover
+- Route percentage of traffic to AVP
+- Monitor latency, errors, decision parity
+- Increase percentage over time
+- Keep authorization-service as fallback
+
+### Phase 4: Retirement
+- Remove authorization-service dependency
+- Simplify permission-service (remove read path)
+- Archive OpenSearch read indices
+- Full AVP operation
+
+### Data Sync Considerations
+
+**Entities to sync to AVP:**
+- Users (with role assignments per location)
+- Organizations, Regions, Sites (with hierarchy)
+- RoleGroups (as Cedar groups - users are members based on their roles)
+- Modules
+
+**What NOT to sync:**
+- Individual measurables (too many - 4096+ per site)
+- Use site-level check + application-level filtering instead
+- Legacy bitmask permissionMap values (not needed in role-based system)
+
+**Sync trigger options:**
+1. **Event-driven** - SNS/SQS from permission-service writes
+2. **CDC** - OpenSearch change streams (if available)
+3. **Periodic batch** - Full sync every N minutes (simplest start)
+
+---
+
+## 5. Best Practices for Storing Cedar Policies (General)
 
 ### Where Should Policies Live?
 
@@ -172,7 +606,7 @@ payments-service/
 
 ---
 
-## 3. Integration: API Gateway + Lambda
+## 6. Integration: API Gateway + Lambda
 
 ### Architecture
 
@@ -463,7 +897,7 @@ export class PolicyStoreStack extends cdk.Stack {
 
 ---
 
-## 4. Integration: ECS + Hapi.js
+## 7. Integration: ECS + Hapi.js
 
 ### Architecture
 
@@ -935,7 +1369,7 @@ app.synth();
 
 ---
 
-## 5. Sample Cedar Schema
+## 8. Generic Sample Cedar Schema
 
 ```json
 {
@@ -997,7 +1431,7 @@ app.synth();
 
 ---
 
-## 6. Sample Cedar Policies
+## 9. Generic Sample Cedar Policies
 
 ```cedar
 // policies/base.cedar
@@ -1048,21 +1482,37 @@ forbid (
 
 ---
 
-## 7. Next Steps
+## 10. Next Steps
 
-1. [ ] Set up AWS account with Verified Permissions enabled
-2. [ ] Initialize CDK project (`cdk init app --language typescript`)
-3. [ ] Create Policy Store via CDK
-4. [ ] Define schema based on application domain
-5. [ ] Write and test Cedar policies locally
-6. [ ] Implement Lambda authorizer for API Gateway
-7. [ ] Implement Hapi.js plugin for ECS services
-8. [ ] Set up CI/CD for policy and infrastructure deployment
-9. [ ] Add monitoring and audit logging
+### Immediate (POC Phase)
+1. [ ] Set up AWS Verified Permissions in dev account
+2. [ ] Initialize CDK project for Policy Store infrastructure
+3. [ ] Define Gazebo Cedar schema (User, Site, Organization, RoleGroup, etc.)
+4. [ ] Write Cedar policies for existing roles (globalAdmin, administrator, viewer, etc.)
+5. [ ] Test policies in Cedar Playground with sample entities
+6. [ ] Build entity sync prototype (permission-service → AVP)
+
+### Short-term (Shadow Mode)
+7. [ ] Modify permission-service to dual-write (OpenSearch + AVP)
+8. [ ] Create `hapi-gazebo-avp` plugin (parallel to `hapi-gazebo-auth`)
+9. [ ] Deploy shadow-mode comparison in non-critical service
+10. [ ] Monitor and fix parity issues
+
+### Medium-term (Cutover)
+11. [ ] Implement feature flag for AVP vs authorization-service
+12. [ ] Gradual rollout: 10% → 50% → 100% traffic to AVP
+13. [ ] Update `gazebo-hapi-chassis` to use AVP
+14. [ ] Performance benchmarking and optimization
+
+### Long-term (Cleanup)
+15. [ ] Deprecate authorization-service
+16. [ ] Simplify permission-service (remove read endpoints)
+17. [ ] Archive OpenSearch read indices
+18. [ ] Full production operation on AVP
 
 ---
 
-## 8. Useful Resources
+## 11. Useful Resources
 
 - [AWS Verified Permissions Documentation](https://docs.aws.amazon.com/verifiedpermissions/latest/userguide/what-is-avp.html)
 - [Cedar Language Reference](https://docs.cedarpolicy.com/)
