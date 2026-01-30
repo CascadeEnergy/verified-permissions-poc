@@ -2,8 +2,9 @@ import { useState } from "react";
 import { PermissionManager } from "./components/PermissionManager";
 import { AuthChecker } from "./components/AuthChecker";
 import { ScenarioRunner } from "./components/ScenarioRunner";
+import { PolicyViewer } from "./components/PolicyViewer";
 
-type Tab = "permissions" | "authorize" | "scenarios";
+type Tab = "permissions" | "authorize" | "scenarios" | "policies";
 
 function App() {
   const [activeTab, setActiveTab] = useState<Tab>("authorize");
@@ -43,11 +44,18 @@ function App() {
         >
           Test Scenarios
         </button>
+        <button
+          className={`tab ${activeTab === "policies" ? "active" : ""}`}
+          onClick={() => setActiveTab("policies")}
+        >
+          View Policies
+        </button>
       </div>
 
       {activeTab === "authorize" && <AuthChecker />}
       {activeTab === "permissions" && <PermissionManager />}
       {activeTab === "scenarios" && <ScenarioRunner />}
+      {activeTab === "policies" && <PolicyViewer />}
     </div>
   );
 }

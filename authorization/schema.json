@@ -8,9 +8,9 @@
             "email": { "type": "String", "required": false }
           }
         },
-        "memberOfTypes": ["RoleGroup"]
+        "memberOfTypes": ["Role"]
       },
-      "RoleGroup": {
+      "Role": {
         "shape": {
           "type": "Record",
           "attributes": {

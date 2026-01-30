@@ -1,6 +1,5 @@
-// globalAdmin role grants full access to everything
 permit (
-    principal in Gazebo::RoleGroup::"globalAdmin",
+    principal in Gazebo::Role::"globalAdmin",
     action,
     resource
 );

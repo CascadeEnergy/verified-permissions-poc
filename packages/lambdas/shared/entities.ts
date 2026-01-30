@@ -10,10 +10,10 @@ export function buildEntities(req: AuthRequest) {
     parents: [],
   };
 
-  // Add role group memberships
+  // Add role memberships
   if (req.userRoles && req.userRoles.length > 0) {
     userEntity.parents = req.userRoles.map((role) => ({
-      entityType: "Gazebo::RoleGroup",
+      entityType: "Gazebo::Role",
       entityId: role,
     }));
   }
@@ -50,10 +50,10 @@ export function buildEntities(req: AuthRequest) {
 
   entities.push(resourceEntity);
 
-  // Add role group entities (needed for policy evaluation)
+  // Add role entities (needed for policy evaluation)
   ROLES.forEach((role) => {
     entities.push({
-      identifier: { entityType: "Gazebo::RoleGroup", entityId: role },
+      identifier: { entityType: "Gazebo::Role", entityId: role },
       attributes: { name: { string: role } },
     });
   });

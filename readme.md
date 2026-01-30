@@ -39,6 +39,8 @@ npx cdk deploy
 Note the outputs:
 - `ApiUrl` - The API Gateway URL
 - `PolicyStoreId` - The Verified Permissions Policy Store ID
+- `WebsiteUrl` - The CloudFront URL for the frontend
+- `WebsiteBucketName` - S3 bucket for frontend assets
 
 ### 2. Run Frontend
 
@@ -92,9 +94,49 @@ Run pre-built scenarios that validate Gazebo role behaviors:
 - **Creator Privilege**: Users can always View/Edit resources they created
 - **Hierarchy**: Resources belong to Sites, Sites belong to Regions/Organizations
 
+## CI/CD Pipeline
+
+Set up a self-mutating CodePipeline for automatic deployments on push to main.
+
+### Prerequisites
+
+1. Give the repo access to your GitHub machine users group (in GitHub console)
+2. The `CascadeEnergy` secret in AWS Secrets Manager must have access to the repo
+
+### Deploy the Pipeline
+
+```bash
+cd packages/infra
+npm install
+
+npx cdk deploy GazeboPocPipeline --profile sandbox \
+  -c repoOwner="CascadeEnergy" \
+  -c repoName="verified-permissions-poc"
+```
+
+The pipeline is self-mutating - it will:
+1. Update itself when pipeline code changes
+2. Deploy the CDK infrastructure (API, Lambdas, Verified Permissions, S3, CloudFront)
+3. Build the frontend with the correct API URL
+4. Deploy frontend to S3 and invalidate CloudFront cache
+
+### What Gets Deployed
+
+On every push to `main`:
+- **GazeboPocStack**: API Gateway, Lambdas, Verified Permissions Policy Store, S3, CloudFront
+- **Frontend**: Built and deployed to S3/CloudFront
+
+### Manual Deploy (without pipeline)
+
+For local development or one-off deployments:
+```bash
+npx cdk deploy GazeboPocStack --profile sandbox
+```
+
 ## Cleanup
 
 ```bash
 cd packages/infra
-npx cdk destroy
+npx cdk destroy GazeboPocPipelineStack --profile sandbox  # Remove pipeline
+npx cdk destroy GazeboPocStack --profile sandbox          # Remove POC
 ```

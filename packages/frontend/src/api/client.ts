@@ -35,10 +35,17 @@ export const api = {
       method: "DELETE",
     }),
 
-  listPolicies: () =>
-    request<{ policies: Array<{ policyId: string; principal?: any; resource?: any }> }>(
-      "/permissions/list"
-    ),
+  listPolicies: (userId?: string) =>
+    request<{
+      policies: Array<{
+        policyId: string;
+        policyType: string;
+        createdDate: string;
+        statement: string;
+        description: string;
+      }>;
+      total: number;
+    }>(`/permissions/list${userId ? `?userId=${encodeURIComponent(userId)}` : ""}`),
 
   // Authorization
   checkAuthorization: (req: AuthRequest) =>
