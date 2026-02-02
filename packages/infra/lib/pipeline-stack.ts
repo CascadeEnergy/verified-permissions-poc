@@ -66,23 +66,40 @@ export class PipelineStack extends cdk.Stack {
 
     const deployStage = pipeline.addStage(deploy);
 
-    // Add frontend build & deploy after infrastructure is deployed
-    deployStage.addPost(
-      new pipelines.ShellStep("DeployFrontend", {
-        envFromCfnOutputs: {
-          API_URL: deploy.apiUrl,
-          BUCKET_NAME: deploy.bucketName,
-          DISTRIBUTION_ID: deploy.distributionId,
-        },
-        commands: [
-          "cd packages/frontend",
-          "npm ci",
-          "echo \"VITE_API_URL=$API_URL\" > .env.production",
-          "npm run build",
-          "aws s3 sync dist s3://$BUCKET_NAME --delete",
-          "aws cloudfront create-invalidation --distribution-id $DISTRIBUTION_ID --paths '/*'",
-        ],
-      })
-    );
+    // Run Cypress E2E tests against the deployed API
+    const testStep = new pipelines.ShellStep("E2ETests", {
+      envFromCfnOutputs: {
+        API_URL: deploy.apiUrl,
+      },
+      commands: [
+        "cd packages/frontend",
+        "npm ci",
+        // Create cypress.env.json with the API URL
+        "echo '{\"API_URL\": \"'$API_URL'\"}' > cypress.env.json",
+        // Run Cypress tests in headless mode
+        "npx cypress run --browser chrome",
+      ],
+    });
+
+    // Add frontend build & deploy after tests pass
+    const deployFrontendStep = new pipelines.ShellStep("DeployFrontend", {
+      envFromCfnOutputs: {
+        API_URL: deploy.apiUrl,
+        BUCKET_NAME: deploy.bucketName,
+        DISTRIBUTION_ID: deploy.distributionId,
+      },
+      commands: [
+        "cd packages/frontend",
+        "npm ci",
+        "echo \"VITE_API_URL=$API_URL\" > .env.production",
+        "npm run build",
+        "aws s3 sync dist s3://$BUCKET_NAME --delete",
+        "aws cloudfront create-invalidation --distribution-id $DISTRIBUTION_ID --paths '/*'",
+      ],
+    });
+
+    // Tests run first, then deploy frontend (sequential via dependency)
+    deployFrontendStep.addStepDependency(testStep);
+    deployStage.addPost(testStep, deployFrontendStep);
   }
 }
