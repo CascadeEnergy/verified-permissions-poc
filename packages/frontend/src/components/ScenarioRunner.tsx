@@ -98,15 +98,26 @@ export function ScenarioRunner() {
 
     for (const scenario of SCENARIOS) {
       try {
-        const res = await api.batchCheckAuthorization({ requests: scenario.requests });
-        const actuals = res.results.map((r) => r.allowed);
+        // Run individual auth checks instead of batch (batch endpoint has issues)
+        const results = await Promise.all(
+          scenario.requests.map(async (req) => {
+            const res = await api.checkAuthorization(req);
+            return {
+              request: req,
+              allowed: res.allowed,
+              decision: res.decision,
+            };
+          })
+        );
+
+        const actuals = results.map((r) => r.allowed);
         const passed = actuals.every((a, i) => a === scenario.expected[i]);
 
         scenarioResults.push({
           name: scenario.name,
           description: scenario.description,
           passed,
-          results: res.results,
+          results,
           expected: scenario.expected,
         });
       } catch (err: any) {

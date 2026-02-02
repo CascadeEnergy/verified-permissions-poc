@@ -66,22 +66,7 @@ export class PipelineStack extends cdk.Stack {
 
     const deployStage = pipeline.addStage(deploy);
 
-    // Run Cypress E2E tests against the deployed API
-    const testStep = new pipelines.ShellStep("E2ETests", {
-      envFromCfnOutputs: {
-        API_URL: deploy.apiUrl,
-      },
-      commands: [
-        "cd packages/frontend",
-        "npm ci",
-        // Create cypress.env.json with the API URL
-        "echo '{\"API_URL\": \"'$API_URL'\"}' > cypress.env.json",
-        // Run Cypress tests in headless mode
-        "npx cypress run --browser chrome",
-      ],
-    });
-
-    // Add frontend build & deploy after tests pass
+    // Deploy frontend first
     const deployFrontendStep = new pipelines.ShellStep("DeployFrontend", {
       envFromCfnOutputs: {
         API_URL: deploy.apiUrl,
@@ -98,8 +83,24 @@ export class PipelineStack extends cdk.Stack {
       ],
     });
 
-    // Tests run first, then deploy frontend (sequential via dependency)
-    deployFrontendStep.addStepDependency(testStep);
-    deployStage.addPost(testStep, deployFrontendStep);
+    // Run Cypress E2E tests against the deployed UI
+    const testStep = new pipelines.ShellStep("E2ETests", {
+      envFromCfnOutputs: {
+        API_URL: deploy.apiUrl,
+        WEBSITE_URL: deploy.websiteUrl,
+      },
+      commands: [
+        "cd packages/frontend",
+        "npm ci",
+        // Create cypress.env.json with URLs
+        "echo '{\"API_URL\": \"'$API_URL'\", \"WEBSITE_URL\": \"'$WEBSITE_URL'\"}' > cypress.env.json",
+        // Run Cypress tests against the deployed UI
+        "npx cypress run --browser chrome --config baseUrl=$WEBSITE_URL",
+      ],
+    });
+
+    // Deploy frontend first, then run E2E tests
+    testStep.addStepDependency(deployFrontendStep);
+    deployStage.addPost(deployFrontendStep, testStep);
   }
 }
