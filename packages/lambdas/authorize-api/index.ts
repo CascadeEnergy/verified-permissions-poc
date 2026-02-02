@@ -86,6 +86,7 @@ export const handler: APIGatewayProxyHandlerV2 = async (event): Promise<APIGatew
         };
       }
 
+      // Build requests (without entities - those go at the top level)
       const requests = body.requests.map((req) => ({
         principal: {
           entityType: "Gazebo::User",
@@ -99,12 +100,25 @@ export const handler: APIGatewayProxyHandlerV2 = async (event): Promise<APIGatew
           entityType: `Gazebo::${req.resourceType}`,
           entityId: req.resourceId,
         },
-        entities: buildEntities(req),
       }));
+
+      // Combine entities from all requests (deduplicated by identifier)
+      const entityMap = new Map<string, any>();
+      for (const req of body.requests) {
+        const { entityList } = buildEntities(req);
+        for (const entity of entityList) {
+          const key = `${entity.identifier.entityType}::${entity.identifier.entityId}`;
+          if (!entityMap.has(key)) {
+            entityMap.set(key, entity);
+          }
+        }
+      }
+      const combinedEntities = { entityList: Array.from(entityMap.values()) };
 
       const command = new BatchIsAuthorizedCommand({
         policyStoreId: POLICY_STORE_ID,
         requests,
+        entities: combinedEntities,
       });
 
       const result = await client.send(command);
