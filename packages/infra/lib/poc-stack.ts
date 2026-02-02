@@ -51,6 +51,37 @@ export class PocStack extends cdk.Stack {
       });
     });
 
+    // Create policy templates for site-scoped roles
+    const siteViewerTemplate = new verifiedpermissions.CfnPolicyTemplate(this, "SiteViewerTemplate", {
+      policyStoreId: policyStore.attrPolicyStoreId,
+      statement: `permit(
+  principal == ?principal,
+  action == Gazebo::Action::"View",
+  resource in ?resource
+);`,
+      description: "Grants view access to a site and its contents (Projects, Models)",
+    });
+
+    const siteContributorTemplate = new verifiedpermissions.CfnPolicyTemplate(this, "SiteContributorTemplate", {
+      policyStoreId: policyStore.attrPolicyStoreId,
+      statement: `permit(
+  principal == ?principal,
+  action in [Gazebo::Action::"View", Gazebo::Action::"Edit"],
+  resource in ?resource
+);`,
+      description: "Grants view and edit access to a site and its contents",
+    });
+
+    const siteCoordinatorTemplate = new verifiedpermissions.CfnPolicyTemplate(this, "SiteCoordinatorTemplate", {
+      policyStoreId: policyStore.attrPolicyStoreId,
+      statement: `permit(
+  principal == ?principal,
+  action,
+  resource in ?resource
+);`,
+      description: "Grants full access to a site and its contents",
+    });
+
     // Permissions API Lambda
     const permissionsLambda = new lambdaNodejs.NodejsFunction(this, "PermissionsApi", {
       entry: path.join(__dirname, "../../lambdas/permissions-api/index.ts"),
@@ -58,6 +89,9 @@ export class PocStack extends cdk.Stack {
       runtime: lambda.Runtime.NODEJS_18_X,
       environment: {
         POLICY_STORE_ID: policyStore.attrPolicyStoreId,
+        TEMPLATE_SITE_VIEWER: siteViewerTemplate.attrPolicyTemplateId,
+        TEMPLATE_SITE_CONTRIBUTOR: siteContributorTemplate.attrPolicyTemplateId,
+        TEMPLATE_SITE_COORDINATOR: siteCoordinatorTemplate.attrPolicyTemplateId,
       },
       timeout: cdk.Duration.seconds(30),
       bundling: {
@@ -91,6 +125,8 @@ export class PocStack extends cdk.Stack {
         "verifiedpermissions:DeletePolicy",
         "verifiedpermissions:ListPolicies",
         "verifiedpermissions:GetPolicy",
+        "verifiedpermissions:GetPolicyTemplate",
+        "verifiedpermissions:ListPolicyTemplates",
       ],
       resources: [policyStore.attrArn, `${policyStore.attrArn}/*`],
     });

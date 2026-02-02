@@ -11,6 +11,13 @@ import { RoleAssignment } from "../shared/types";
 const client = new VerifiedPermissionsClient({});
 const POLICY_STORE_ID = process.env.POLICY_STORE_ID!;
 
+// Template IDs for site-scoped roles
+const TEMPLATES: Record<string, string | undefined> = {
+  viewer: process.env.TEMPLATE_SITE_VIEWER,
+  contributor: process.env.TEMPLATE_SITE_CONTRIBUTOR,
+  coordinator: process.env.TEMPLATE_SITE_COORDINATOR,
+};
+
 const headers = {
   "Content-Type": "application/json",
   "Access-Control-Allow-Origin": "*",
@@ -28,7 +35,7 @@ export const handler: APIGatewayProxyHandlerV2 = async (event): Promise<APIGatew
   }
 
   try {
-    // POST /permissions/assign - Assign role to user
+    // POST /permissions/assign - Assign role to user at a site
     if (method === "POST" && path.endsWith("/assign")) {
       const body: RoleAssignment = JSON.parse(event.body || "{}");
 
@@ -40,36 +47,74 @@ export const handler: APIGatewayProxyHandlerV2 = async (event): Promise<APIGatew
         };
       }
 
-      // Create a policy that grants this user the role at the target
-      const policyStatement = `permit (
+      const templateId = TEMPLATES[body.role];
+
+      if (templateId) {
+        // Use template instantiation for site-scoped roles (viewer, contributor, coordinator)
+        const command = new CreatePolicyCommand({
+          policyStoreId: POLICY_STORE_ID,
+          definition: {
+            templateLinked: {
+              policyTemplateId: templateId,
+              principal: {
+                entityType: "Gazebo::User",
+                entityId: body.userId,
+              },
+              resource: {
+                entityType: `Gazebo::${body.targetType}`,
+                entityId: body.targetId,
+              },
+            },
+          },
+        });
+
+        const result = await client.send(command);
+
+        return {
+          statusCode: 200,
+          headers,
+          body: JSON.stringify({
+            success: true,
+            policyId: result.policyId,
+            policyType: "template-linked",
+            template: body.role,
+            assignment: body,
+          }),
+        };
+      } else {
+        // For global roles (globalAdmin, administrator), assign user to role membership
+        // This creates a static policy granting the user membership in the global role
+        const policyStatement = `permit (
   principal == Gazebo::User::"${body.userId}",
   action,
-  resource in Gazebo::${body.targetType}::"${body.targetId}"
+  resource
 ) when {
   principal in Gazebo::Role::"${body.role}"
 };`;
 
-      const command = new CreatePolicyCommand({
-        policyStoreId: POLICY_STORE_ID,
-        definition: {
-          static: {
-            statement: policyStatement,
-            description: `${body.role} for user ${body.userId} at ${body.targetType}:${body.targetId}`,
+        const command = new CreatePolicyCommand({
+          policyStoreId: POLICY_STORE_ID,
+          definition: {
+            static: {
+              statement: policyStatement,
+              description: `Global ${body.role} for user ${body.userId}`,
+            },
           },
-        },
-      });
+        });
 
-      const result = await client.send(command);
+        const result = await client.send(command);
 
-      return {
-        statusCode: 200,
-        headers,
-        body: JSON.stringify({
-          success: true,
-          policyId: result.policyId,
-          assignment: body,
-        }),
-      };
+        return {
+          statusCode: 200,
+          headers,
+          body: JSON.stringify({
+            success: true,
+            policyId: result.policyId,
+            policyType: "static",
+            assignment: body,
+          }),
+        };
+      }
     }
 
     // DELETE /permissions/assign/{policyId} - Remove role assignment
@@ -109,15 +154,35 @@ export const handler: APIGatewayProxyHandlerV2 = async (event): Promise<APIGatew
               policyId: policy.policyId!,
             });
             const detail = await client.send(getCommand);
-            const statement = detail.definition?.static?.statement || "";
-            const description = detail.definition?.static?.description || "";
+
+            // Handle both static and template-linked policies
+            if (detail.definition?.static) {
+              return {
+                policyId: policy.policyId,
+                policyType: "static",
+                createdDate: policy.createdDate,
+                statement: detail.definition.static.statement || "",
+                description: detail.definition.static.description || "",
+              };
+            } else if (detail.definition?.templateLinked) {
+              const tpl = detail.definition.templateLinked;
+              return {
+                policyId: policy.policyId,
+                policyType: "template-linked",
+                createdDate: policy.createdDate,
+                templateId: tpl.policyTemplateId,
+                principal: tpl.principal,
+                resource: tpl.resource,
+                description: `Template policy: ${tpl.principal?.entityId} → ${tpl.resource?.entityId}`,
+              };
+            }
 
             return {
               policyId: policy.policyId,
               policyType: policy.policyType,
               createdDate: policy.createdDate,
-              statement,
-              description,
+              statement: "",
+              description: "",
             };
           } catch {
             return {
@@ -133,7 +198,17 @@ export const handler: APIGatewayProxyHandlerV2 = async (event): Promise<APIGatew
 
       // Filter by userId if provided
       const filteredPolicies = userIdFilter
-        ? policiesWithDetails.filter((p) => p.statement.includes(`User::"${userIdFilter}"`))
+        ? policiesWithDetails.filter((p) => {
+            // Check static policy statement
+            if (p.statement && p.statement.includes(`User::"${userIdFilter}"`)) {
+              return true;
+            }
+            // Check template-linked principal
+            if (p.principal?.entityId === userIdFilter) {
+              return true;
+            }
+            return false;
+          })
         : policiesWithDetails;
 
       return {

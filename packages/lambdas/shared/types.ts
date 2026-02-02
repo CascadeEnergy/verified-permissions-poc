@@ -1,4 +1,4 @@
-export type Role = "globalAdmin" | "administrator" | "coordinator" | "contributor" | "viewer";
+export type Role = "globalAdmin" | "administrator" | "coordinator" | "facilitator" | "contributor" | "champion" | "viewer";
 export type TargetType = "Site" | "Organization" | "Region";
 export type ResourceType = "Site" | "Project" | "Model" | "Module" | "Organization" | "Region";
 export type Action = "View" | "Edit" | "Create" | "Delete" | "Admin";
@@ -24,4 +24,4 @@ export interface BatchAuthRequest {
   requests: AuthRequest[];
 }
 
-export const ROLES: Role[] = ["globalAdmin", "administrator", "coordinator", "contributor", "viewer"];
+export const ROLES: Role[] = ["globalAdmin", "administrator", "coordinator", "facilitator", "contributor", "champion", "viewer"];
