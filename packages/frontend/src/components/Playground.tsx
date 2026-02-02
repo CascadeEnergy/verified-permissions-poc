@@ -182,11 +182,15 @@ export function Playground() {
       if (selectedUser === "admin@cascade.com") {
         return `ALLOWED: ${user?.name} is a Global Admin with a static policy that permits all actions on all resources. The globalAdmin role bypasses all resource-specific checks.`;
       }
-      if (projectCreator === selectedUser) {
+      if (projectCreator === selectedUser && (selectedAction === "View" || selectedAction === "Edit")) {
         return `ALLOWED: The creator-privilege static policy permits users to View and Edit resources they created. Since ${user?.name} created this project, they have access regardless of other role assignments.`;
       }
       return `ALLOWED: ${user?.name} has a template-linked policy granting ${user?.permissions}. Since the project "${projectName}" is in ${site?.name}, and ${selectedAction} is within their permitted actions, access is granted.`;
     } else {
+      // Check if this is a creator trying to do something other than View/Edit
+      if (projectCreator === selectedUser && selectedAction !== "View" && selectedAction !== "Edit") {
+        return `DENIED: ${user?.name} created this resource, but the creator-privilege policy only permits View and Edit actions. ${selectedAction} is not covered by creator privileges — you'd need a separate role assignment for that.`;
+      }
       if (selectedUser === "nobody@example.com") {
         return `DENIED: ${user?.name} has no role assignments and is not the creator of this resource. In Cedar/AVP, the default is to deny access when no policy explicitly permits it.`;
       }
@@ -301,7 +305,7 @@ export function Playground() {
                   ))}
                 </select>
                 <p style={{ fontSize: "12px", color: "#666", marginTop: "4px" }}>
-                  Setting a creator enables the "creator-privilege" policy, allowing that user to View/Edit this resource.
+                  Setting a creator enables the "creator-privilege" policy, allowing that user to <strong>View and Edit</strong> this resource (but not Delete or other actions).
                 </p>
               </div>
             </div>
