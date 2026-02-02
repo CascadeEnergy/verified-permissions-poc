@@ -1,5 +1,6 @@
 import * as cdk from "aws-cdk-lib";
 import * as pipelines from "aws-cdk-lib/pipelines";
+import * as iam from "aws-cdk-lib/aws-iam";
 import { Construct } from "constructs";
 import { PocStack } from "./poc-stack";
 
@@ -66,8 +67,8 @@ export class PipelineStack extends cdk.Stack {
 
     const deployStage = pipeline.addStage(deploy);
 
-    // Deploy frontend first
-    const deployFrontendStep = new pipelines.ShellStep("DeployFrontend", {
+    // Deploy frontend - needs IAM permissions for S3 and CloudFront
+    const deployFrontendStep = new pipelines.CodeBuildStep("DeployFrontend", {
       envFromCfnOutputs: {
         API_URL: deploy.apiUrl,
         BUCKET_NAME: deploy.bucketName,
@@ -80,6 +81,29 @@ export class PipelineStack extends cdk.Stack {
         "npm run build",
         "aws s3 sync dist s3://$BUCKET_NAME --delete",
         "aws cloudfront create-invalidation --distribution-id $DISTRIBUTION_ID --paths '/*'",
+      ],
+      rolePolicyStatements: [
+        new iam.PolicyStatement({
+          actions: [
+            "s3:ListBucket",
+            "s3:GetBucketLocation",
+          ],
+          resources: [`arn:aws:s3:::gazebo-poc-frontend-${this.account}-${this.region}`],
+        }),
+        new iam.PolicyStatement({
+          actions: [
+            "s3:PutObject",
+            "s3:GetObject",
+            "s3:DeleteObject",
+          ],
+          resources: [`arn:aws:s3:::gazebo-poc-frontend-${this.account}-${this.region}/*`],
+        }),
+        new iam.PolicyStatement({
+          actions: [
+            "cloudfront:CreateInvalidation",
+          ],
+          resources: ["*"],
+        }),
       ],
     });
 
