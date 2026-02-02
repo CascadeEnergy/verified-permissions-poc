@@ -84,65 +84,6 @@ const SCENARIOS: Scenario[] = [
   },
 ];
 
-// Policy templates for scoped role assignments
-// Role hierarchy (lowest to highest): Viewer < Contributor < Champion < Facilitator < Coordinator < Administrator
-const ROLE_TEMPLATES: PolicyInfo[] = [
-  {
-    name: "Viewer",
-    type: "template",
-    code: `permit (
-    principal == ?principal,
-    action == Gazebo::Action::"View",
-    resource in ?resource
-);`,
-  },
-  {
-    name: "Contributor",
-    type: "template",
-    code: `permit (
-    principal == ?principal,
-    action in [Gazebo::Action::"View", Gazebo::Action::"Edit"],
-    resource in ?resource
-);`,
-  },
-  {
-    name: "Champion",
-    type: "template",
-    code: `permit (
-    principal == ?principal,
-    action in [Gazebo::Action::"View", Gazebo::Action::"Edit", Gazebo::Action::"Create"],
-    resource in ?resource
-);`,
-  },
-  {
-    name: "Facilitator",
-    type: "template",
-    code: `permit (
-    principal == ?principal,
-    action in [Gazebo::Action::"View", Gazebo::Action::"Edit", Gazebo::Action::"Create"],
-    resource in ?resource
-);`,
-  },
-  {
-    name: "Coordinator",
-    type: "template",
-    code: `permit (
-    principal == ?principal,
-    action in [Gazebo::Action::"View", Gazebo::Action::"Edit", Gazebo::Action::"Create", Gazebo::Action::"Delete"],
-    resource in ?resource
-);`,
-  },
-  {
-    name: "Administrator",
-    type: "template",
-    code: `permit (
-    principal == ?principal,
-    action,
-    resource in ?resource
-);`,
-  },
-];
-
 export function ScenarioRunner() {
   const [results, setResults] = useState<
     Array<{
@@ -155,7 +96,6 @@ export function ScenarioRunner() {
   >([]);
   const [loading, setLoading] = useState(false);
   const [expandedScenario, setExpandedScenario] = useState<number | null>(null);
-  const [showTemplates, setShowTemplates] = useState(false);
 
   const runAllScenarios = async () => {
     setLoading(true);
@@ -219,38 +159,9 @@ export function ScenarioRunner() {
           Click on a scenario to see the Cedar policies that apply.
         </p>
 
-        <div style={{ display: "flex", gap: "12px", marginBottom: "16px" }}>
-          <button onClick={runAllScenarios} disabled={loading}>
-            {loading ? "Running..." : "Run All Scenarios"}
-          </button>
-          <button
-            onClick={() => setShowTemplates(!showTemplates)}
-            style={{ background: showTemplates ? "#1976d2" : "#666" }}
-          >
-            {showTemplates ? "Hide" : "Show"} Role Templates
-          </button>
-        </div>
-
-        {showTemplates && (
-          <div className="templates-section">
-            <h3>Role Templates</h3>
-            <p style={{ color: "#666", fontSize: "13px", marginBottom: "12px" }}>
-              These templates define permission levels for Gazebo roles. They can be applied to any resource
-              (Site, Region, Organization). Instantiated with ?principal and ?resource placeholders filled in.
-            </p>
-            <div className="policy-list">
-              {ROLE_TEMPLATES.map((template, i) => (
-                <div key={i} className="policy-card template">
-                  <div className="policy-header">
-                    <span className="policy-name">{template.name}</span>
-                    <span className="policy-type-badge template">Template</span>
-                  </div>
-                  <pre className="policy-code">{template.code}</pre>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
+        <button onClick={runAllScenarios} disabled={loading} style={{ marginBottom: "16px" }}>
+          {loading ? "Running..." : "Run All Scenarios"}
+        </button>
 
         {results.length > 0 && (
           <div style={{ marginTop: "16px", marginBottom: "16px", fontWeight: "bold", fontSize: "18px" }}>
