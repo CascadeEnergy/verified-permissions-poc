@@ -121,6 +121,53 @@ export function Introduction() {
             like static policies during authorization checks.
           </p>
         </div>
+
+        <div className="concept">
+          <h3>6. Entity Data & Conditional Policies</h3>
+          <p>
+            Policies can use <code>when</code> clauses to check <strong>entity attributes</strong>.
+            AVP doesn't store entity data — you provide it with each authorization request.
+          </p>
+          <div className="code-example">
+            <div className="code-header">Policy: Creator can edit their own resources</div>
+            <pre>{`permit (
+  principal,
+  action in [Gazebo::Action::"View", Gazebo::Action::"Edit"],
+  resource
+) when {
+  resource has createdBy && resource.createdBy == principal
+};`}</pre>
+          </div>
+          <p>
+            For this policy to work, your app must include the resource's <code>createdBy</code>{" "}
+            attribute in the authorization request:
+          </p>
+          <div className="code-example">
+            <div className="code-header">Authorization request with entity data</div>
+            <pre>{`{
+  "principal": { "entityType": "Gazebo::User", "entityId": "user-1" },
+  "action": { "actionType": "Gazebo::Action", "actionId": "Edit" },
+  "resource": { "entityType": "Gazebo::Project", "entityId": "proj-1" },
+  "entities": {
+    "entityList": [
+      {
+        "identifier": { "entityType": "Gazebo::Project", "entityId": "proj-1" },
+        "attributes": {
+          "createdBy": {
+            "entityIdentifier": { "entityType": "Gazebo::User", "entityId": "user-1" }
+          }
+        }
+      }
+    ]
+  }
+}`}</pre>
+          </div>
+          <p className="note">
+            <strong>Key insight:</strong> Your app fetches the resource from your database,
+            then includes relevant attributes in the auth request. This means no need to sync
+            entity data to AVP — you control exactly what's available for each request.
+          </p>
+        </div>
       </section>
 
       <section>
@@ -190,10 +237,8 @@ export function Introduction() {
         <h2>Try It Out</h2>
         <p>Use the tabs above to:</p>
         <ul>
-          <li><strong>Manage Permissions</strong> – Assign users to sites with roles (creates template-linked policies)</li>
-          <li><strong>Check Authorization</strong> – Test if a user can perform an action</li>
-          <li><strong>Test Scenarios</strong> – Run pre-built test cases</li>
-          <li><strong>View Policies</strong> – See all active policies in the policy store</li>
+          <li><strong>Policy Store</strong> – Explore the schema, static policies, templates, and any user assignments</li>
+          <li><strong>Test Scenarios</strong> – Run pre-built test cases and see which policies apply to each check</li>
         </ul>
       </section>
     </div>
