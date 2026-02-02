@@ -1,13 +1,14 @@
 import { useState } from "react";
+import { Introduction } from "./components/Introduction";
 import { PermissionManager } from "./components/PermissionManager";
 import { AuthChecker } from "./components/AuthChecker";
 import { ScenarioRunner } from "./components/ScenarioRunner";
 import { PolicyViewer } from "./components/PolicyViewer";
 
-type Tab = "permissions" | "authorize" | "scenarios" | "policies";
+type Tab = "intro" | "permissions" | "authorize" | "scenarios" | "policies";
 
 function App() {
-  const [activeTab, setActiveTab] = useState<Tab>("authorize");
+  const [activeTab, setActiveTab] = useState<Tab>("intro");
   const apiUrl = import.meta.env.VITE_API_URL;
 
   return (
@@ -27,16 +28,22 @@ function App() {
 
       <div className="tabs">
         <button
-          className={`tab ${activeTab === "authorize" ? "active" : ""}`}
-          onClick={() => setActiveTab("authorize")}
+          className={`tab ${activeTab === "intro" ? "active" : ""}`}
+          onClick={() => setActiveTab("intro")}
         >
-          Check Authorization
+          Introduction
         </button>
         <button
           className={`tab ${activeTab === "permissions" ? "active" : ""}`}
           onClick={() => setActiveTab("permissions")}
         >
           Manage Permissions
+        </button>
+        <button
+          className={`tab ${activeTab === "authorize" ? "active" : ""}`}
+          onClick={() => setActiveTab("authorize")}
+        >
+          Check Authorization
         </button>
         <button
           className={`tab ${activeTab === "scenarios" ? "active" : ""}`}
@@ -52,8 +59,9 @@ function App() {
         </button>
       </div>
 
-      {activeTab === "authorize" && <AuthChecker />}
+      {activeTab === "intro" && <Introduction />}
       {activeTab === "permissions" && <PermissionManager />}
+      {activeTab === "authorize" && <AuthChecker />}
       {activeTab === "scenarios" && <ScenarioRunner />}
       {activeTab === "policies" && <PolicyViewer />}
     </div>
