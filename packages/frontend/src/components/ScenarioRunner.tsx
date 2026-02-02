@@ -39,8 +39,8 @@ const SCENARIOS: Scenario[] = [
     ],
   },
   {
-    name: "Roles Without Site Assignment - Denied",
-    description: "Roles like administrator, coordinator, viewer have NO global access. They require site-scoped template assignments.",
+    name: "Roles Without Assignment - Denied",
+    description: "Roles like administrator, coordinator, viewer have NO global access. They require template-based resource assignments.",
     requests: [
       { userId: "admin-2", userRoles: ["administrator"], action: "View", resourceType: "Site", resourceId: "site-1" },
       { userId: "coord-1", userRoles: ["coordinator"], action: "View", resourceType: "Site", resourceId: "site-1" },
@@ -84,10 +84,11 @@ const SCENARIOS: Scenario[] = [
   },
 ];
 
-// Site-scoped templates (shown for reference)
-const SITE_TEMPLATES: PolicyInfo[] = [
+// Policy templates for scoped role assignments
+// Role hierarchy (lowest to highest): Viewer < Contributor < Champion < Facilitator < Coordinator < Administrator
+const ROLE_TEMPLATES: PolicyInfo[] = [
   {
-    name: "Site Viewer Template",
+    name: "Viewer",
     type: "template",
     code: `permit (
     principal == ?principal,
@@ -96,7 +97,7 @@ const SITE_TEMPLATES: PolicyInfo[] = [
 );`,
   },
   {
-    name: "Site Contributor Template",
+    name: "Contributor",
     type: "template",
     code: `permit (
     principal == ?principal,
@@ -105,7 +106,7 @@ const SITE_TEMPLATES: PolicyInfo[] = [
 );`,
   },
   {
-    name: "Site Coordinator Template",
+    name: "Champion",
     type: "template",
     code: `permit (
     principal == ?principal,
@@ -114,7 +115,25 @@ const SITE_TEMPLATES: PolicyInfo[] = [
 );`,
   },
   {
-    name: "Site Administrator Template",
+    name: "Facilitator",
+    type: "template",
+    code: `permit (
+    principal == ?principal,
+    action in [Gazebo::Action::"View", Gazebo::Action::"Edit", Gazebo::Action::"Create"],
+    resource in ?resource
+);`,
+  },
+  {
+    name: "Coordinator",
+    type: "template",
+    code: `permit (
+    principal == ?principal,
+    action in [Gazebo::Action::"View", Gazebo::Action::"Edit", Gazebo::Action::"Create", Gazebo::Action::"Delete"],
+    resource in ?resource
+);`,
+  },
+  {
+    name: "Administrator",
     type: "template",
     code: `permit (
     principal == ?principal,
@@ -208,19 +227,19 @@ export function ScenarioRunner() {
             onClick={() => setShowTemplates(!showTemplates)}
             style={{ background: showTemplates ? "#1976d2" : "#666" }}
           >
-            {showTemplates ? "Hide" : "Show"} Site Templates
+            {showTemplates ? "Hide" : "Show"} Role Templates
           </button>
         </div>
 
         {showTemplates && (
           <div className="templates-section">
-            <h3>Site-Scoped Templates</h3>
+            <h3>Role Templates</h3>
             <p style={{ color: "#666", fontSize: "13px", marginBottom: "12px" }}>
-              These templates are used when assigning users to specific sites.
-              They're instantiated with ?principal and ?resource placeholders filled in.
+              These templates define permission levels for Gazebo roles. They can be applied to any resource
+              (Site, Region, Organization). Instantiated with ?principal and ?resource placeholders filled in.
             </p>
             <div className="policy-list">
-              {SITE_TEMPLATES.map((template, i) => (
+              {ROLE_TEMPLATES.map((template, i) => (
                 <div key={i} className="policy-card template">
                   <div className="policy-header">
                     <span className="policy-name">{template.name}</span>

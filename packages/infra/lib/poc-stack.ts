@@ -51,45 +51,68 @@ export class PocStack extends cdk.Stack {
       });
     });
 
-    // Create policy templates for site-scoped roles
-    const siteViewerTemplate = new verifiedpermissions.CfnPolicyTemplate(this, "SiteViewerTemplate", {
+    // Create policy templates for scoped roles
+    // Templates define permission LEVELS - they can be applied to any resource (Site, Region, Organization, etc.)
+    // Role hierarchy (lowest to highest): Viewer < Contributor < Champion < Facilitator < Coordinator < Administrator
+
+    const viewerTemplate = new verifiedpermissions.CfnPolicyTemplate(this, "ViewerTemplate", {
       policyStoreId: policyStore.attrPolicyStoreId,
       statement: `permit(
   principal == ?principal,
   action == Gazebo::Action::"View",
   resource in ?resource
 );`,
-      description: "Grants view access to a site and its contents (Projects, Models)",
+      description: "Viewer (Evaluator, Program Sponsor): View and export data only",
     });
 
-    const siteContributorTemplate = new verifiedpermissions.CfnPolicyTemplate(this, "SiteContributorTemplate", {
+    const contributorTemplate = new verifiedpermissions.CfnPolicyTemplate(this, "ContributorTemplate", {
       policyStoreId: policyStore.attrPolicyStoreId,
       statement: `permit(
   principal == ?principal,
   action in [Gazebo::Action::"View", Gazebo::Action::"Edit"],
   resource in ?resource
 );`,
-      description: "Grants view and edit access to a site and its contents",
+      description: "Contributor (Energy Team Member): View + add data, edit projects/resources/markers",
     });
 
-    const siteCoordinatorTemplate = new verifiedpermissions.CfnPolicyTemplate(this, "SiteCoordinatorTemplate", {
+    const championTemplate = new verifiedpermissions.CfnPolicyTemplate(this, "ChampionTemplate", {
       policyStoreId: policyStore.attrPolicyStoreId,
       statement: `permit(
   principal == ?principal,
   action in [Gazebo::Action::"View", Gazebo::Action::"Edit", Gazebo::Action::"Create"],
   resource in ?resource
 );`,
-      description: "Grants view, edit, and create access to a site and its contents",
+      description: "Champion (Energy Champion): Contributor + edit models, manage savings claims",
     });
 
-    const siteAdministratorTemplate = new verifiedpermissions.CfnPolicyTemplate(this, "SiteAdministratorTemplate", {
+    const facilitatorTemplate = new verifiedpermissions.CfnPolicyTemplate(this, "FacilitatorTemplate", {
+      policyStoreId: policyStore.attrPolicyStoreId,
+      statement: `permit(
+  principal == ?principal,
+  action in [Gazebo::Action::"View", Gazebo::Action::"Edit", Gazebo::Action::"Create"],
+  resource in ?resource
+);`,
+      description: "Facilitator (Technical Lead, Coach): Champion + import projects, overwrite data, share views",
+    });
+
+    const coordinatorTemplate = new verifiedpermissions.CfnPolicyTemplate(this, "CoordinatorTemplate", {
+      policyStoreId: policyStore.attrPolicyStoreId,
+      statement: `permit(
+  principal == ?principal,
+  action in [Gazebo::Action::"View", Gazebo::Action::"Edit", Gazebo::Action::"Create", Gazebo::Action::"Delete"],
+  resource in ?resource
+);`,
+      description: "Coordinator (Lead Coach, Program Specialist): Facilitator + manage users, sites, data streams, groups",
+    });
+
+    const administratorTemplate = new verifiedpermissions.CfnPolicyTemplate(this, "AdministratorTemplate", {
       policyStoreId: policyStore.attrPolicyStoreId,
       statement: `permit(
   principal == ?principal,
   action,
   resource in ?resource
 );`,
-      description: "Grants full access to a site and its contents (including delete)",
+      description: "Administrator (Cascade only): Full admin access to all features",
     });
 
     // Permissions API Lambda
@@ -99,10 +122,12 @@ export class PocStack extends cdk.Stack {
       runtime: lambda.Runtime.NODEJS_18_X,
       environment: {
         POLICY_STORE_ID: policyStore.attrPolicyStoreId,
-        TEMPLATE_SITE_VIEWER: siteViewerTemplate.attrPolicyTemplateId,
-        TEMPLATE_SITE_CONTRIBUTOR: siteContributorTemplate.attrPolicyTemplateId,
-        TEMPLATE_SITE_COORDINATOR: siteCoordinatorTemplate.attrPolicyTemplateId,
-        TEMPLATE_SITE_ADMINISTRATOR: siteAdministratorTemplate.attrPolicyTemplateId,
+        TEMPLATE_VIEWER: viewerTemplate.attrPolicyTemplateId,
+        TEMPLATE_CONTRIBUTOR: contributorTemplate.attrPolicyTemplateId,
+        TEMPLATE_CHAMPION: championTemplate.attrPolicyTemplateId,
+        TEMPLATE_COORDINATOR: coordinatorTemplate.attrPolicyTemplateId,
+        TEMPLATE_FACILITATOR: facilitatorTemplate.attrPolicyTemplateId,
+        TEMPLATE_ADMINISTRATOR: administratorTemplate.attrPolicyTemplateId,
       },
       timeout: cdk.Duration.seconds(30),
       bundling: {

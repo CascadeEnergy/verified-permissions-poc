@@ -39,10 +39,11 @@ const STATIC_POLICIES = [
   },
 ];
 
+// Role hierarchy (lowest to highest): Viewer < Contributor < Champion < Facilitator < Coordinator < Administrator
 const POLICY_TEMPLATES = [
   {
-    name: "Site Viewer",
-    description: "Grants view access to a site and its contents",
+    name: "Viewer",
+    description: "Evaluator, Program Sponsor — View and export data only",
     code: `permit (
     principal == ?principal,
     action == Gazebo::Action::"View",
@@ -50,8 +51,8 @@ const POLICY_TEMPLATES = [
 );`,
   },
   {
-    name: "Site Contributor",
-    description: "Grants view and edit access to a site and its contents",
+    name: "Contributor",
+    description: "Energy Team Member — View + add data, edit projects/resources/markers",
     code: `permit (
     principal == ?principal,
     action in [Gazebo::Action::"View", Gazebo::Action::"Edit"],
@@ -59,8 +60,8 @@ const POLICY_TEMPLATES = [
 );`,
   },
   {
-    name: "Site Coordinator",
-    description: "Grants view, edit, and create access to a site and its contents",
+    name: "Champion",
+    description: "Energy Champion — Contributor + edit models, manage savings claims",
     code: `permit (
     principal == ?principal,
     action in [Gazebo::Action::"View", Gazebo::Action::"Edit", Gazebo::Action::"Create"],
@@ -68,8 +69,26 @@ const POLICY_TEMPLATES = [
 );`,
   },
   {
-    name: "Site Administrator",
-    description: "Grants full access to a site and its contents (including delete)",
+    name: "Facilitator",
+    description: "Technical Lead, Coach — Champion + import projects, overwrite data, share views",
+    code: `permit (
+    principal == ?principal,
+    action in [Gazebo::Action::"View", Gazebo::Action::"Edit", Gazebo::Action::"Create"],
+    resource in ?resource
+);`,
+  },
+  {
+    name: "Coordinator",
+    description: "Lead Coach, Program Specialist — Facilitator + manage users, sites, data streams",
+    code: `permit (
+    principal == ?principal,
+    action in [Gazebo::Action::"View", Gazebo::Action::"Edit", Gazebo::Action::"Create", Gazebo::Action::"Delete"],
+    resource in ?resource
+);`,
+  },
+  {
+    name: "Administrator",
+    description: "Cascade only — Full admin access to all features",
     code: `permit (
     principal == ?principal,
     action,

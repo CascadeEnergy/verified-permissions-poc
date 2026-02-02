@@ -172,44 +172,64 @@ export function Introduction() {
 
       <section>
         <h2>How This Maps to Gazebo</h2>
+        <p>
+          Role hierarchy from lowest to highest: Viewer → Contributor → Champion → Facilitator → Coordinator → Administrator
+        </p>
         <table className="mapping-table">
           <thead>
             <tr>
-              <th>Gazebo Concept</th>
-              <th>AVP Implementation</th>
+              <th>Gazebo Role</th>
+              <th>Typical Users</th>
+              <th>Key Capabilities</th>
             </tr>
           </thead>
           <tbody>
             <tr>
               <td>Global Admin</td>
-              <td>Static policy: user in Role::"globalAdmin" → permit all (only truly global role)</td>
+              <td>System Admin</td>
+              <td>Static policy — full access everywhere (only truly global role)</td>
             </tr>
             <tr>
-              <td>Site Administrator</td>
-              <td>Template instance: User X → full access (all actions) to Site Y</td>
+              <td>Administrator</td>
+              <td>Program Specialist, Account Manager</td>
+              <td>Full admin access (Cascade only)</td>
             </tr>
             <tr>
-              <td>Site Coordinator</td>
-              <td>Template instance: User X → view + edit + create on Site Y</td>
+              <td>Coordinator</td>
+              <td>Lead Coach, Program Specialist</td>
+              <td>Facilitator + manage users, sites, data streams, groups</td>
             </tr>
             <tr>
-              <td>Site Contributor</td>
-              <td>Template instance: User X → view + edit on Site Y</td>
+              <td>Facilitator</td>
+              <td>Technical Lead, Coach</td>
+              <td>Champion + import projects, overwrite data, share views</td>
             </tr>
             <tr>
-              <td>Site Viewer</td>
-              <td>Template instance: User X → view only on Site Y</td>
+              <td>Champion</td>
+              <td>Energy Champion</td>
+              <td>Contributor + edit models, manage savings claims</td>
+            </tr>
+            <tr>
+              <td>Contributor</td>
+              <td>Energy Team Member</td>
+              <td>Viewer + add data, edit projects/resources/markers</td>
+            </tr>
+            <tr>
+              <td>Viewer</td>
+              <td>Evaluator, Program Sponsor</td>
+              <td>View and export data only</td>
             </tr>
             <tr>
               <td>Creator Access</td>
-              <td>Static policy: resource.createdBy == principal → view + edit</td>
-            </tr>
-            <tr>
-              <td>Project/Model in Site</td>
-              <td>Hierarchy: <code>resource in Site::"Y"</code> includes child resources</td>
+              <td>Any user</td>
+              <td>Static policy — view/edit resources you created</td>
             </tr>
           </tbody>
         </table>
+        <p className="note">
+          <strong>Key insight:</strong> All roles except Global Admin require a template-based assignment to a specific
+          resource (Site, Group, or Organization). Access automatically includes child resources.
+        </p>
       </section>
 
       <section>

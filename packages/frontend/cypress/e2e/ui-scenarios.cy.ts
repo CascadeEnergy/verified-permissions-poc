@@ -47,7 +47,7 @@ describe("UI Test Scenarios", () => {
 
       // Verify each scenario passed
       cy.contains(".scenario.passed", "Global Admin - Full Access").should("exist");
-      cy.contains(".scenario.passed", "Roles Without Site Assignment - Denied").should("exist");
+      cy.contains(".scenario.passed", "Roles Without Assignment - Denied").should("exist");
       cy.contains(".scenario.passed", "Creator Privilege - Own Resources").should("exist");
       cy.contains(".scenario.passed", "No Role, No Creator - Denied").should("exist");
     });
@@ -62,8 +62,8 @@ describe("UI Test Scenarios", () => {
         cy.get(".check-item.mismatch").should("not.exist");
       });
 
-      // Check Roles Without Site Assignment scenario shows all DENIED
-      cy.contains(".scenario", "Roles Without Site Assignment").within(() => {
+      // Check Roles Without Assignment scenario shows all DENIED
+      cy.contains(".scenario", "Roles Without Assignment").within(() => {
         cy.contains("DENIED").should("exist");
         cy.get(".check-item.mismatch").should("not.exist");
       });
