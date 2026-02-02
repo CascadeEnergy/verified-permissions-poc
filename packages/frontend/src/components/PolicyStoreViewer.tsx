@@ -16,6 +16,117 @@ const SCHEMA_SUMMARY = {
   actions: ["View", "Edit", "Create", "Delete", "Admin"],
 };
 
+// Raw Cedar JSON schema (matches authorization/schema.json)
+const SCHEMA_JSON = {
+  "Gazebo": {
+    "entityTypes": {
+      "User": {
+        "shape": {
+          "type": "Record",
+          "attributes": {
+            "email": { "type": "String", "required": false }
+          }
+        },
+        "memberOfTypes": ["Role"]
+      },
+      "Role": {
+        "shape": {
+          "type": "Record",
+          "attributes": {
+            "name": { "type": "String", "required": false }
+          }
+        }
+      },
+      "Organization": {
+        "shape": {
+          "type": "Record",
+          "attributes": {
+            "name": { "type": "String", "required": false }
+          }
+        }
+      },
+      "Region": {
+        "shape": {
+          "type": "Record",
+          "attributes": {
+            "name": { "type": "String", "required": false }
+          }
+        },
+        "memberOfTypes": ["Organization"]
+      },
+      "Site": {
+        "shape": {
+          "type": "Record",
+          "attributes": {
+            "name": { "type": "String", "required": false }
+          }
+        },
+        "memberOfTypes": ["Region", "Organization"]
+      },
+      "Project": {
+        "shape": {
+          "type": "Record",
+          "attributes": {
+            "name": { "type": "String", "required": false },
+            "createdBy": { "type": "Entity", "name": "User", "required": false }
+          }
+        },
+        "memberOfTypes": ["Site"]
+      },
+      "Model": {
+        "shape": {
+          "type": "Record",
+          "attributes": {
+            "name": { "type": "String", "required": false },
+            "createdBy": { "type": "Entity", "name": "User", "required": false }
+          }
+        },
+        "memberOfTypes": ["Site"]
+      },
+      "Module": {
+        "shape": {
+          "type": "Record",
+          "attributes": {
+            "name": { "type": "String", "required": false }
+          }
+        }
+      }
+    },
+    "actions": {
+      "View": {
+        "appliesTo": {
+          "principalTypes": ["User"],
+          "resourceTypes": ["Site", "Project", "Model", "Module", "Organization", "Region"]
+        }
+      },
+      "Edit": {
+        "appliesTo": {
+          "principalTypes": ["User"],
+          "resourceTypes": ["Site", "Project", "Model"]
+        }
+      },
+      "Create": {
+        "appliesTo": {
+          "principalTypes": ["User"],
+          "resourceTypes": ["Site"]
+        }
+      },
+      "Delete": {
+        "appliesTo": {
+          "principalTypes": ["User"],
+          "resourceTypes": ["Site", "Project", "Model"]
+        }
+      },
+      "Admin": {
+        "appliesTo": {
+          "principalTypes": ["User"],
+          "resourceTypes": ["Site", "Organization"]
+        }
+      }
+    }
+  }
+};
+
 const STATIC_POLICIES = [
   {
     name: "global-admin.cedar",
@@ -110,6 +221,7 @@ export function PolicyStoreViewer() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [expandedSection, setExpandedSection] = useState<string | null>("schema");
+  const [showRawSchema, setShowRawSchema] = useState(false);
 
   const loadPolicies = async () => {
     setLoading(true);
@@ -188,6 +300,29 @@ export function PolicyStoreViewer() {
 
 User ──memberOf──▶ Role`}</pre>
           </div>
+
+          <div style={{ marginTop: "16px" }}>
+            <button
+              onClick={() => setShowRawSchema(!showRawSchema)}
+              style={{ background: showRawSchema ? "#1976d2" : "#666" }}
+            >
+              {showRawSchema ? "Hide" : "Show"} Raw Cedar JSON
+            </button>
+          </div>
+
+          {showRawSchema && (
+            <div style={{ marginTop: "12px" }}>
+              <h3>Cedar JSON Schema</h3>
+              <p style={{ color: "#666", fontSize: "13px", marginBottom: "8px" }}>
+                This is the actual schema.json file used by AWS Verified Permissions.
+              </p>
+              <div className="code-block">
+                <pre style={{ maxHeight: "400px", overflow: "auto" }}>
+                  {JSON.stringify(SCHEMA_JSON, null, 2)}
+                </pre>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
