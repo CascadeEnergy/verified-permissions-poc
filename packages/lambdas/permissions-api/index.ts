@@ -11,11 +11,14 @@ import { RoleAssignment } from "../shared/types";
 const client = new VerifiedPermissionsClient({});
 const POLICY_STORE_ID = process.env.POLICY_STORE_ID!;
 
-// Template IDs for site-scoped roles
+// Template IDs for scoped roles (can be applied to Site, Region, or Organization)
 const TEMPLATES: Record<string, string | undefined> = {
-  viewer: process.env.TEMPLATE_SITE_VIEWER,
-  contributor: process.env.TEMPLATE_SITE_CONTRIBUTOR,
-  coordinator: process.env.TEMPLATE_SITE_COORDINATOR,
+  viewer: process.env.TEMPLATE_VIEWER,
+  contributor: process.env.TEMPLATE_CONTRIBUTOR,
+  champion: process.env.TEMPLATE_CHAMPION,
+  facilitator: process.env.TEMPLATE_FACILITATOR,
+  coordinator: process.env.TEMPLATE_COORDINATOR,
+  administrator: process.env.TEMPLATE_ADMINISTRATOR,
 };
 
 const headers = {

@@ -260,38 +260,42 @@ User ──memberOf──▶ Role`}</pre>
       {expandedSection === "linked" && (
         <div className="section-content">
           <p className="section-description">
-            These are created when you assign a user to a site. Each one references a template
-            and fills in the ?principal and ?resource placeholders.
+            These are created when you assign a user to a resource (Site, Region, or Organization).
+            Each one instantiates a template with ?principal and ?resource filled in.
           </p>
 
           {error && <div className="error-message">Error loading: {error}</div>}
 
           {templateLinkedPolicies.length === 0 && !loading && !error && (
             <div className="empty-state">
-              <p>No site-scoped assignments yet.</p>
+              <p>No role assignments yet.</p>
               <p className="hint">
-                Template-linked policies are created when you assign users to specific sites
-                with roles like viewer, contributor, or coordinator.
+                Template-linked policies are created when you assign users to specific resources
+                with roles like Viewer, Contributor, Champion, Facilitator, Coordinator, or Administrator.
               </p>
             </div>
           )}
 
           {templateLinkedPolicies.length > 0 && (
             <div className="linked-policy-list">
-              {templateLinkedPolicies.map((policy) => (
-                <div key={policy.policyId} className="linked-policy-card">
-                  <div className="linked-policy-assignment">
-                    <span className="linked-label">User:</span>
-                    <span className="linked-value">{policy.principal?.entityId || "?"}</span>
-                    <span className="linked-arrow">→</span>
-                    <span className="linked-label">Site:</span>
-                    <span className="linked-value">{policy.resource?.entityId || "?"}</span>
+              {templateLinkedPolicies.map((policy) => {
+                // Extract resource type from entityType (e.g., "Gazebo::Site" -> "Site")
+                const resourceType = policy.resource?.entityType?.split("::")[1] || "Resource";
+                return (
+                  <div key={policy.policyId} className="linked-policy-card">
+                    <div className="linked-policy-assignment">
+                      <span className="linked-value user">{policy.principal?.entityId || "?"}</span>
+                      <span className="linked-arrow">→</span>
+                      <span className="linked-value resource">
+                        {resourceType}: {policy.resource?.entityId || "?"}
+                      </span>
+                    </div>
+                    <div className="linked-policy-meta">
+                      {policy.description}
+                    </div>
                   </div>
-                  <div className="linked-policy-meta">
-                    Policy ID: {policy.policyId.slice(0, 12)}...
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
 
