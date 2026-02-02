@@ -1,11 +1,9 @@
 import { useState } from "react";
 import { Introduction } from "./components/Introduction";
-import { PermissionManager } from "./components/PermissionManager";
-import { AuthChecker } from "./components/AuthChecker";
+import { PolicyStoreViewer } from "./components/PolicyStoreViewer";
 import { ScenarioRunner } from "./components/ScenarioRunner";
-import { PolicyViewer } from "./components/PolicyViewer";
 
-type Tab = "intro" | "permissions" | "authorize" | "scenarios" | "policies";
+type Tab = "intro" | "policystore" | "scenarios";
 
 function App() {
   const [activeTab, setActiveTab] = useState<Tab>("intro");
@@ -15,7 +13,7 @@ function App() {
     <div className="app">
       <h1>Gazebo Verified Permissions POC</h1>
       <p className="subtitle">
-        Test AWS Verified Permissions with Gazebo-like role-based access control
+        Explore how AWS Verified Permissions can manage Gazebo's role-based access control
       </p>
 
       {!apiUrl && (
@@ -34,16 +32,10 @@ function App() {
           Introduction
         </button>
         <button
-          className={`tab ${activeTab === "permissions" ? "active" : ""}`}
-          onClick={() => setActiveTab("permissions")}
+          className={`tab ${activeTab === "policystore" ? "active" : ""}`}
+          onClick={() => setActiveTab("policystore")}
         >
-          Manage Permissions
-        </button>
-        <button
-          className={`tab ${activeTab === "authorize" ? "active" : ""}`}
-          onClick={() => setActiveTab("authorize")}
-        >
-          Check Authorization
+          Policy Store
         </button>
         <button
           className={`tab ${activeTab === "scenarios" ? "active" : ""}`}
@@ -51,19 +43,11 @@ function App() {
         >
           Test Scenarios
         </button>
-        <button
-          className={`tab ${activeTab === "policies" ? "active" : ""}`}
-          onClick={() => setActiveTab("policies")}
-        >
-          View Policies
-        </button>
       </div>
 
       {activeTab === "intro" && <Introduction />}
-      {activeTab === "permissions" && <PermissionManager />}
-      {activeTab === "authorize" && <AuthChecker />}
+      {activeTab === "policystore" && <PolicyStoreViewer />}
       {activeTab === "scenarios" && <ScenarioRunner />}
-      {activeTab === "policies" && <PolicyViewer />}
     </div>
   );
 }
