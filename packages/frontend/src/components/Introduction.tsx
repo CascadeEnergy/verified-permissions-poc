@@ -172,63 +172,60 @@ export function Introduction() {
 
       <section>
         <h2>How This Maps to Gazebo</h2>
+        <div className="note" style={{ marginBottom: "16px", background: "#e3f2fd", padding: "12px", borderRadius: "4px" }}>
+          <strong>Important:</strong> These role names (Viewer, Contributor, etc.) are <em>permission levels</em>, not job titles.
+          They define what capabilities a user has on a specific resource. A single person can have different permission
+          levels on different resources — for example, Administrator on Site A, but only Viewer on Site B.
+        </div>
         <p>
-          Role hierarchy from lowest to highest: Viewer → Contributor → Champion → Facilitator → Coordinator → Administrator
+          Permission hierarchy from lowest to highest: Viewer → Contributor → Champion → Facilitator → Coordinator → Administrator
         </p>
         <table className="mapping-table">
           <thead>
             <tr>
-              <th>Gazebo Role</th>
-              <th>Typical Users</th>
-              <th>Key Capabilities</th>
+              <th>Permission Level</th>
+              <th>Capabilities</th>
             </tr>
           </thead>
           <tbody>
             <tr>
               <td>Global Admin</td>
-              <td>System Admin</td>
-              <td>Static policy — full access everywhere (only truly global role)</td>
+              <td>Static policy — full access everywhere (only truly global permission)</td>
             </tr>
             <tr>
               <td>Administrator</td>
-              <td>Program Specialist, Account Manager</td>
-              <td>Full admin access (Cascade only)</td>
+              <td>Full access to a resource and its children (Cascade only)</td>
             </tr>
             <tr>
               <td>Coordinator</td>
-              <td>Lead Coach, Program Specialist</td>
               <td>Facilitator + manage users, sites, data streams, groups</td>
             </tr>
             <tr>
               <td>Facilitator</td>
-              <td>Technical Lead, Coach</td>
               <td>Champion + import projects, overwrite data, share views</td>
             </tr>
             <tr>
               <td>Champion</td>
-              <td>Energy Champion</td>
               <td>Contributor + edit models, manage savings claims</td>
             </tr>
             <tr>
               <td>Contributor</td>
-              <td>Energy Team Member</td>
               <td>Viewer + add data, edit projects/resources/markers</td>
             </tr>
             <tr>
               <td>Viewer</td>
-              <td>Evaluator, Program Sponsor</td>
               <td>View and export data only</td>
             </tr>
             <tr>
               <td>Creator Access</td>
-              <td>Any user</td>
-              <td>Static policy — view/edit resources you created</td>
+              <td>Static policy — view/edit resources you created (automatic)</td>
             </tr>
           </tbody>
         </table>
         <p className="note">
-          <strong>Key insight:</strong> All roles except Global Admin require a template-based assignment to a specific
-          resource (Site, Group, or Organization). Access automatically includes child resources.
+          <strong>Key insight:</strong> All permission levels except Global Admin are assigned per-resource using policy templates.
+          When you assign a user as "Coordinator" on a Site, they get Coordinator access to that Site and all its children
+          (Projects, Models). The same user might have "Viewer" access to a different Site.
         </p>
       </section>
 
