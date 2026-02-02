@@ -21,6 +21,14 @@ export function Introduction() {
             it as a "permissions database" for your application. Each application
             typically has one policy store.
           </p>
+          <div className="code-example">
+            <div className="code-header">What's in a Policy Store</div>
+            <pre>{`Policy Store
+├── Schema                      (entity types, actions, relationships)
+├── Static Policies             (fixed rules from .cedar files)
+├── Policy Templates            (reusable patterns with ?placeholders)
+└── Template-Linked Policies    (user→site assignments, created via API)`}</pre>
+          </div>
         </div>
 
         <div className="concept">
@@ -80,8 +88,7 @@ export function Introduction() {
           <h3>4. Policy Templates</h3>
           <p>
             Reusable policy patterns with <strong>placeholders</strong> (<code>?principal</code>,{" "}
-            <code>?resource</code>). When you assign a user to a site, you create a
-            template-linked policy that fills in the placeholders.
+            <code>?resource</code>). Templates are defined once in the policy store.
           </p>
           <div className="code-example">
             <div className="code-header">Template: Site Viewer</div>
@@ -91,10 +98,27 @@ export function Introduction() {
   resource in ?resource
 );`}</pre>
           </div>
+        </div>
+
+        <div className="concept">
+          <h3>5. Template-Linked Policies</h3>
+          <p>
+            When you assign a user to a site, you <strong>instantiate</strong> a template
+            by binding specific values to the placeholders. This creates a template-linked
+            policy that lives in the policy store alongside static policies.
+          </p>
+          <div className="code-example">
+            <div className="code-header">Creating a template-linked policy (API call)</div>
+            <pre>{`{
+  "policyTemplateId": "site-viewer-template",
+  "principal": { "entityType": "Gazebo::User", "entityId": "alice" },
+  "resource": { "entityType": "Gazebo::Site", "entityId": "building-a" }
+}`}</pre>
+          </div>
           <p className="note">
-            When instantiated with <code>?principal = User::"alice"</code> and{" "}
-            <code>?resource = Site::"building-a"</code>, Alice can view Building A and all
-            Projects/Models within it.
+            This effectively creates a policy: "Alice can View resources in Building A."
+            The template-linked policy is stored in the policy store and evaluated just
+            like static policies during authorization checks.
           </p>
         </div>
       </section>
