@@ -4,6 +4,7 @@ import {
   DeletePolicyCommand,
   ListPoliciesCommand,
   GetPolicyCommand,
+  GetPolicyTemplateCommand,
 } from "@aws-sdk/client-verifiedpermissions";
 import { APIGatewayProxyHandlerV2, APIGatewayProxyResultV2 } from "aws-lambda";
 import { RoleAssignment } from "../shared/types";
@@ -169,6 +170,23 @@ export const handler: APIGatewayProxyHandlerV2 = async (event): Promise<APIGatew
               };
             } else if (detail.definition?.templateLinked) {
               const tpl = detail.definition.templateLinked;
+
+              // Fetch template details to get the role/description
+              let templateDescription = "";
+              let templateStatement = "";
+              try {
+                const templateDetail = await client.send(
+                  new GetPolicyTemplateCommand({
+                    policyStoreId: POLICY_STORE_ID,
+                    policyTemplateId: tpl.policyTemplateId!,
+                  })
+                );
+                templateDescription = templateDetail.description || "";
+                templateStatement = templateDetail.statement || "";
+              } catch {
+                // Ignore template fetch errors
+              }
+
               return {
                 policyId: policy.policyId,
                 policyType: "template-linked",
@@ -176,7 +194,9 @@ export const handler: APIGatewayProxyHandlerV2 = async (event): Promise<APIGatew
                 templateId: tpl.policyTemplateId,
                 principal: tpl.principal,
                 resource: tpl.resource,
-                description: `Template policy: ${tpl.principal?.entityId} → ${tpl.resource?.entityId}`,
+                templateDescription,
+                templateStatement,
+                description: templateDescription || `${tpl.principal?.entityId} → ${tpl.resource?.entityId}`,
               };
             }
 

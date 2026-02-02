@@ -213,7 +213,31 @@ interface TemplateLinkedPolicy {
   principal?: { entityType: string; entityId: string };
   resource?: { entityType: string; entityId: string };
   templateId?: string;
+  templateDescription?: string;
+  templateStatement?: string;
   description: string;
+}
+
+// Extract role name from template description (e.g., "Coordinator (Lead Coach...)" -> "Coordinator")
+function extractRoleName(description: string): string {
+  const match = description.match(/^(\w+)/);
+  return match ? match[1] : "Unknown";
+}
+
+// Generate effective Cedar code by replacing placeholders in template statement
+function generateEffectiveCedar(
+  policy: TemplateLinkedPolicy
+): { role: string; code: string } | null {
+  if (!policy.principal || !policy.resource || !policy.templateStatement) return null;
+
+  const role = extractRoleName(policy.templateDescription || policy.description);
+
+  // Replace placeholders with actual values
+  const code = policy.templateStatement
+    .replace(/\?principal/g, `${policy.principal.entityType}::"${policy.principal.entityId}"`)
+    .replace(/\?resource/g, `${policy.resource.entityType}::"${policy.resource.entityId}"`);
+
+  return { role, code };
 }
 
 export function PolicyStoreViewer() {
@@ -222,6 +246,19 @@ export function PolicyStoreViewer() {
   const [error, setError] = useState<string | null>(null);
   const [expandedSection, setExpandedSection] = useState<string | null>("schema");
   const [showRawSchema, setShowRawSchema] = useState(false);
+  const [expandedPolicies, setExpandedPolicies] = useState<Set<string>>(new Set());
+
+  const togglePolicyExpand = (policyId: string) => {
+    setExpandedPolicies((prev) => {
+      const next = new Set(prev);
+      if (next.has(policyId)) {
+        next.delete(policyId);
+      } else {
+        next.add(policyId);
+      }
+      return next;
+    });
+  };
 
   const loadPolicies = async () => {
     setLoading(true);
@@ -236,6 +273,8 @@ export function PolicyStoreViewer() {
           principal: p.principal,
           resource: p.resource,
           templateId: p.templateId,
+          templateDescription: p.templateDescription,
+          templateStatement: p.templateStatement,
           description: p.description,
         }));
       setTemplateLinkedPolicies(templateLinked);
@@ -416,18 +455,45 @@ User ──memberOf──▶ Role`}</pre>
               {templateLinkedPolicies.map((policy) => {
                 // Extract resource type from entityType (e.g., "Gazebo::Site" -> "Site")
                 const resourceType = policy.resource?.entityType?.split("::")[1] || "Resource";
+                const effective = generateEffectiveCedar(policy);
+                const isExpanded = expandedPolicies.has(policy.policyId);
                 return (
                   <div key={policy.policyId} className="linked-policy-card">
-                    <div className="linked-policy-assignment">
+                    <div
+                      className="linked-policy-assignment"
+                      onClick={() => togglePolicyExpand(policy.policyId)}
+                      style={{ cursor: "pointer" }}
+                    >
+                      <span className={`expand-icon ${isExpanded ? "expanded" : ""}`}>▶</span>
                       <span className="linked-value user">{policy.principal?.entityId || "?"}</span>
                       <span className="linked-arrow">→</span>
                       <span className="linked-value resource">
                         {resourceType}: {policy.resource?.entityId || "?"}
                       </span>
+                      {effective && (
+                        <span className="role-badge" style={{
+                          marginLeft: "8px",
+                          padding: "2px 8px",
+                          background: "#e3f2fd",
+                          borderRadius: "4px",
+                          fontSize: "12px",
+                          color: "#1565c0",
+                          textTransform: "capitalize"
+                        }}>
+                          {effective.role}
+                        </span>
+                      )}
                     </div>
-                    <div className="linked-policy-meta">
-                      {policy.description}
-                    </div>
+                    {isExpanded && effective && (
+                      <div style={{ marginTop: "8px" }}>
+                        <div style={{ fontSize: "12px", color: "#666", marginBottom: "4px" }}>
+                          Effective Cedar Policy:
+                        </div>
+                        <pre className="policy-code" style={{ margin: 0, fontSize: "12px" }}>
+                          {effective.code}
+                        </pre>
+                      </div>
+                    )}
                   </div>
                 );
               })}
