@@ -168,6 +168,45 @@ export function Introduction() {
             entity data to AVP — you control exactly what's available for each request.
           </p>
         </div>
+
+        <div className="concept">
+          <h3>7. Resources Don't Need to Exist in AVP</h3>
+          <p>
+            <strong>AVP is a policy evaluation engine, not a resource database.</strong> When you
+            create a new Project in Gazebo, you don't need to register it with AVP. Instead, you
+            provide the resource context at authorization time.
+          </p>
+          <div className="code-example">
+            <div className="code-header">Authorization request with resource hierarchy</div>
+            <pre>{`{
+  "principal": { "entityType": "Gazebo::User", "entityId": "alice@example.com" },
+  "action": { "actionType": "Gazebo::Action", "actionId": "View" },
+  "resource": { "entityType": "Gazebo::Project", "entityId": "brand-new-project" },
+  "entities": {
+    "entityList": [
+      {
+        "identifier": { "entityType": "Gazebo::Project", "entityId": "brand-new-project" },
+        "parents": [{ "entityType": "Gazebo::Site", "entityId": "portland-manufacturing" }]
+      }
+    ]
+  }
+}`}</pre>
+          </div>
+          <p>
+            The <code>parents</code> field tells AVP that this project belongs to the site. AVP then
+            evaluates: "Does any policy permit this user on this project (which is in this site)?"
+          </p>
+          <p className="note">
+            <strong>Key insight:</strong> Resources are "implied" at evaluation time. AVP doesn't
+            care if a resource "exists" — it just evaluates policies against what you tell it.
+            This means:
+          </p>
+          <ul style={{ marginTop: "8px", paddingLeft: "24px" }}>
+            <li>No sync needed between your database and AVP</li>
+            <li>New resources work immediately with existing policies</li>
+            <li>You control exactly what context AVP sees for each request</li>
+          </ul>
+        </div>
       </section>
 
       <section>

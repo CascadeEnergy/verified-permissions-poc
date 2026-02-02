@@ -2,8 +2,9 @@ import { useState } from "react";
 import { Introduction } from "./components/Introduction";
 import { PolicyStoreViewer } from "./components/PolicyStoreViewer";
 import { ScenarioRunner } from "./components/ScenarioRunner";
+import { Playground } from "./components/Playground";
 
-type Tab = "intro" | "policystore" | "scenarios";
+type Tab = "intro" | "policystore" | "scenarios" | "playground";
 
 function App() {
   const [activeTab, setActiveTab] = useState<Tab>("intro");
@@ -43,11 +44,18 @@ function App() {
         >
           Test Scenarios
         </button>
+        <button
+          className={`tab ${activeTab === "playground" ? "active" : ""}`}
+          onClick={() => setActiveTab("playground")}
+        >
+          Playground
+        </button>
       </div>
 
       {activeTab === "intro" && <Introduction />}
       {activeTab === "policystore" && <PolicyStoreViewer />}
       {activeTab === "scenarios" && <ScenarioRunner />}
+      {activeTab === "playground" && <Playground />}
     </div>
   );
 }
