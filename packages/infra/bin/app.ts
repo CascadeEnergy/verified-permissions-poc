@@ -7,7 +7,7 @@ import { PipelineStack } from "../lib/pipeline-stack";
 const app = new cdk.App();
 
 const env = {
-  account: process.env.CDK_DEFAULT_ACCOUNT,
+  account: process.env.CDK_DEFAULT_ACCOUNT || "127424155741",
   region: process.env.CDK_DEFAULT_REGION || "us-west-2",
 };
 
@@ -18,18 +18,12 @@ new PocStack(app, "GazeboPocStack", {
 });
 
 // Pipeline stack - self-mutating pipeline that deploys the POC stack
-// Deploy with: npx cdk deploy GazeboPocPipeline -c repoOwner=... -c repoName=...
-const repoOwner = app.node.tryGetContext("repoOwner");
-const repoName = app.node.tryGetContext("repoName");
-
-if (repoOwner && repoName) {
-  new PipelineStack(app, "GazeboPocPipeline", {
-    env,
-    description: "CI/CD Pipeline for Gazebo Verified Permissions POC",
-    repoOwner,
-    repoName,
-    branch: app.node.tryGetContext("branch") || "main",
-  });
-}
+new PipelineStack(app, "GazeboPocPipeline", {
+  env,
+  description: "CI/CD Pipeline for Gazebo Verified Permissions POC",
+  repoOwner: "CascadeEnergy",
+  repoName: "verified-permissions-poc",
+  branch: "main",
+});
 
 app.synth();
