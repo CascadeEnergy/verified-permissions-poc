@@ -19,82 +19,10 @@ const SCHEMA_SUMMARY = {
 const STATIC_POLICIES = [
   {
     name: "global-admin.cedar",
-    description: "Global admins can do anything",
+    description: "Global admins can do anything (the only truly global role)",
     code: `permit (
     principal in Gazebo::Role::"globalAdmin",
     action,
-    resource
-);`,
-  },
-  {
-    name: "administrator.cedar",
-    description: "Administrators can do anything",
-    code: `permit (
-    principal in Gazebo::Role::"administrator",
-    action,
-    resource
-);`,
-  },
-  {
-    name: "coordinator.cedar",
-    description: "Coordinators can view, edit, and create",
-    code: `permit (
-    principal in Gazebo::Role::"coordinator",
-    action in [Gazebo::Action::"View", Gazebo::Action::"Edit", Gazebo::Action::"Create"],
-    resource
-);`,
-  },
-  {
-    name: "facilitator.cedar",
-    description: "Facilitators can view, edit, and create",
-    code: `permit (
-    principal in Gazebo::Role::"facilitator",
-    action in [Gazebo::Action::"View", Gazebo::Action::"Edit", Gazebo::Action::"Create"],
-    resource
-);`,
-  },
-  {
-    name: "contributor-view.cedar",
-    description: "Contributors can view everything",
-    code: `permit (
-    principal in Gazebo::Role::"contributor",
-    action == Gazebo::Action::"View",
-    resource
-);`,
-  },
-  {
-    name: "contributor-edit.cedar",
-    description: "Contributors can edit projects only",
-    code: `permit (
-    principal in Gazebo::Role::"contributor",
-    action == Gazebo::Action::"Edit",
-    resource is Gazebo::Project
-);`,
-  },
-  {
-    name: "champion-view.cedar",
-    description: "Champions can view everything",
-    code: `permit (
-    principal in Gazebo::Role::"champion",
-    action == Gazebo::Action::"View",
-    resource
-);`,
-  },
-  {
-    name: "champion-edit.cedar",
-    description: "Champions can edit projects only",
-    code: `permit (
-    principal in Gazebo::Role::"champion",
-    action == Gazebo::Action::"Edit",
-    resource is Gazebo::Project
-);`,
-  },
-  {
-    name: "viewer.cedar",
-    description: "Viewers can only view",
-    code: `permit (
-    principal in Gazebo::Role::"viewer",
-    action == Gazebo::Action::"View",
     resource
 );`,
   },
@@ -132,7 +60,16 @@ const POLICY_TEMPLATES = [
   },
   {
     name: "Site Coordinator",
-    description: "Grants full access to a site and its contents",
+    description: "Grants view, edit, and create access to a site and its contents",
+    code: `permit (
+    principal == ?principal,
+    action in [Gazebo::Action::"View", Gazebo::Action::"Edit", Gazebo::Action::"Create"],
+    resource in ?resource
+);`,
+  },
+  {
+    name: "Site Administrator",
+    description: "Grants full access to a site and its contents (including delete)",
     code: `permit (
     principal == ?principal,
     action,
@@ -245,7 +182,9 @@ User ──memberOf──▶ Role`}</pre>
       {expandedSection === "static" && (
         <div className="section-content">
           <p className="section-description">
-            Static policies are fixed rules defined in .cedar files. They define what each global role can do.
+            Static policies are fixed rules that apply globally. Only two exist: globalAdmin (full system access)
+            and creator-privilege (users can access resources they created). All other roles require site-scoped
+            assignments via templates.
           </p>
 
           <div className="policy-list">

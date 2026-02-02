@@ -40,79 +40,12 @@ describe("Authorization Scenarios", () => {
     });
   });
 
-  describe("Administrator - Full Access", () => {
-    it("should allow View on Project", () => {
+  describe("Roles Without Site Assignment - Denied", () => {
+    it("should DENY administrator role without site assignment", () => {
       cy.checkAuth({
         userId: "admin-2",
         userRoles: ["administrator"],
         action: "View",
-        resourceType: "Project",
-        resourceId: "proj-1",
-      }).then((response) => {
-        expect(response.status).to.eq(200);
-        expect(response.body.allowed).to.eq(true);
-      });
-    });
-
-    it("should allow Delete on Site", () => {
-      cy.checkAuth({
-        userId: "admin-2",
-        userRoles: ["administrator"],
-        action: "Delete",
-        resourceType: "Site",
-        resourceId: "site-1",
-      }).then((response) => {
-        expect(response.status).to.eq(200);
-        expect(response.body.allowed).to.eq(true);
-      });
-    });
-
-    it("should allow Admin on Site", () => {
-      cy.checkAuth({
-        userId: "admin-2",
-        userRoles: ["administrator"],
-        action: "Admin",
-        resourceType: "Site",
-        resourceId: "site-1",
-      }).then((response) => {
-        expect(response.status).to.eq(200);
-        expect(response.body.allowed).to.eq(true);
-      });
-    });
-  });
-
-  describe("Viewer - Read Only", () => {
-    it("should allow View on Site", () => {
-      cy.checkAuth({
-        userId: "viewer-1",
-        userRoles: ["viewer"],
-        action: "View",
-        resourceType: "Site",
-        resourceId: "site-1",
-      }).then((response) => {
-        expect(response.status).to.eq(200);
-        expect(response.body.allowed).to.eq(true);
-      });
-    });
-
-    it("should allow View on Project", () => {
-      cy.checkAuth({
-        userId: "viewer-1",
-        userRoles: ["viewer"],
-        action: "View",
-        resourceType: "Project",
-        resourceId: "proj-1",
-      }).then((response) => {
-        expect(response.status).to.eq(200);
-        expect(response.body.allowed).to.eq(true);
-      });
-    });
-
-    it("should DENY Edit on Site", () => {
-      cy.checkAuth({
-        userId: "viewer-1",
-        userRoles: ["viewer"],
-        action: "Edit",
         resourceType: "Site",
         resourceId: "site-1",
       }).then((response) => {
@@ -120,40 +53,12 @@ describe("Authorization Scenarios", () => {
         expect(response.body.allowed).to.eq(false);
       });
     });
-  });
 
-  describe("Contributor - View All, Edit Projects Only", () => {
-    it("should allow View on Site", () => {
+    it("should DENY coordinator role without site assignment", () => {
       cy.checkAuth({
-        userId: "contrib-1",
-        userRoles: ["contributor"],
+        userId: "coord-1",
+        userRoles: ["coordinator"],
         action: "View",
-        resourceType: "Site",
-        resourceId: "site-1",
-      }).then((response) => {
-        expect(response.status).to.eq(200);
-        expect(response.body.allowed).to.eq(true);
-      });
-    });
-
-    it("should allow Edit on Project", () => {
-      cy.checkAuth({
-        userId: "contrib-1",
-        userRoles: ["contributor"],
-        action: "Edit",
-        resourceType: "Project",
-        resourceId: "proj-1",
-      }).then((response) => {
-        expect(response.status).to.eq(200);
-        expect(response.body.allowed).to.eq(true);
-      });
-    });
-
-    it("should DENY Edit on Site", () => {
-      cy.checkAuth({
-        userId: "contrib-1",
-        userRoles: ["contributor"],
-        action: "Edit",
         resourceType: "Site",
         resourceId: "site-1",
       }).then((response) => {
@@ -161,42 +66,14 @@ describe("Authorization Scenarios", () => {
         expect(response.body.allowed).to.eq(false);
       });
     });
-  });
 
-  describe("Coordinator - View, Edit, Create (No Delete)", () => {
-    it("should allow View on Site", () => {
+    it("should DENY viewer role without site assignment", () => {
       cy.checkAuth({
-        userId: "coord-1",
-        userRoles: ["coordinator"],
+        userId: "viewer-1",
+        userRoles: ["viewer"],
         action: "View",
         resourceType: "Site",
         resourceId: "site-1",
-      }).then((response) => {
-        expect(response.status).to.eq(200);
-        expect(response.body.allowed).to.eq(true);
-      });
-    });
-
-    it("should allow Create on Site", () => {
-      cy.checkAuth({
-        userId: "coord-1",
-        userRoles: ["coordinator"],
-        action: "Create",
-        resourceType: "Site",
-        resourceId: "site-1",
-      }).then((response) => {
-        expect(response.status).to.eq(200);
-        expect(response.body.allowed).to.eq(true);
-      });
-    });
-
-    it("should DENY Delete on Project", () => {
-      cy.checkAuth({
-        userId: "coord-1",
-        userRoles: ["coordinator"],
-        action: "Delete",
-        resourceType: "Project",
-        resourceId: "proj-1",
       }).then((response) => {
         expect(response.status).to.eq(200);
         expect(response.body.allowed).to.eq(false);
@@ -248,7 +125,7 @@ describe("Authorization Scenarios", () => {
     });
   });
 
-  describe("No Role - Denied", () => {
+  describe("No Role, No Creator - Denied", () => {
     it("should DENY View on Site", () => {
       cy.checkAuth({
         userId: "norole-1",

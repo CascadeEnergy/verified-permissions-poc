@@ -19,7 +19,7 @@ interface Scenario {
 const SCENARIOS: Scenario[] = [
   {
     name: "Global Admin - Full Access",
-    description: "Users with globalAdmin role can perform any action on any resource",
+    description: "Users with globalAdmin role can perform any action on any resource (only truly global role)",
     requests: [
       { userId: "admin-1", userRoles: ["globalAdmin"], action: "View", resourceType: "Site", resourceId: "site-1" },
       { userId: "admin-1", userRoles: ["globalAdmin"], action: "Delete", resourceType: "Site", resourceId: "site-1" },
@@ -39,97 +39,15 @@ const SCENARIOS: Scenario[] = [
     ],
   },
   {
-    name: "Administrator - Full Access",
-    description: "Administrators have the same permissions as global admins",
+    name: "Roles Without Site Assignment - Denied",
+    description: "Roles like administrator, coordinator, viewer have NO global access. They require site-scoped template assignments.",
     requests: [
-      { userId: "admin-2", userRoles: ["administrator"], action: "View", resourceType: "Project", resourceId: "proj-1" },
-      { userId: "admin-2", userRoles: ["administrator"], action: "Delete", resourceType: "Site", resourceId: "site-1" },
-      { userId: "admin-2", userRoles: ["administrator"], action: "Admin", resourceType: "Site", resourceId: "site-1" },
-    ],
-    expected: [true, true, true],
-    policies: [
-      {
-        name: "administrator.cedar",
-        type: "static",
-        code: `permit (
-    principal in Gazebo::Role::"administrator",
-    action,
-    resource
-);`,
-      },
-    ],
-  },
-  {
-    name: "Viewer - Read Only",
-    description: "Viewers can only view resources, no edit/create/delete",
-    requests: [
-      { userId: "viewer-1", userRoles: ["viewer"], action: "View", resourceType: "Site", resourceId: "site-1" },
-      { userId: "viewer-1", userRoles: ["viewer"], action: "View", resourceType: "Project", resourceId: "proj-1" },
-      { userId: "viewer-1", userRoles: ["viewer"], action: "Edit", resourceType: "Site", resourceId: "site-1" },
-    ],
-    expected: [true, true, false],
-    policies: [
-      {
-        name: "viewer.cedar",
-        type: "static",
-        code: `permit (
-    principal in Gazebo::Role::"viewer",
-    action == Gazebo::Action::"View",
-    resource
-);`,
-      },
-    ],
-  },
-  {
-    name: "Contributor - View All, Edit Projects",
-    description: "Contributors can view everything but only edit Projects (not Sites)",
-    requests: [
-      { userId: "contrib-1", userRoles: ["contributor"], action: "View", resourceType: "Site", resourceId: "site-1" },
-      { userId: "contrib-1", userRoles: ["contributor"], action: "Edit", resourceType: "Project", resourceId: "proj-1" },
-      { userId: "contrib-1", userRoles: ["contributor"], action: "Edit", resourceType: "Site", resourceId: "site-1" },
-    ],
-    expected: [true, true, false],
-    policies: [
-      {
-        name: "contributor-view.cedar",
-        type: "static",
-        code: `permit (
-    principal in Gazebo::Role::"contributor",
-    action == Gazebo::Action::"View",
-    resource
-);`,
-      },
-      {
-        name: "contributor-edit.cedar",
-        type: "static",
-        code: `permit (
-    principal in Gazebo::Role::"contributor",
-    action == Gazebo::Action::"Edit",
-    resource is Gazebo::Project
-);`,
-      },
-    ],
-  },
-  {
-    name: "Coordinator - View, Edit, Create (No Delete)",
-    description: "Coordinators can view, edit, and create but cannot delete",
-    requests: [
+      { userId: "admin-2", userRoles: ["administrator"], action: "View", resourceType: "Site", resourceId: "site-1" },
       { userId: "coord-1", userRoles: ["coordinator"], action: "View", resourceType: "Site", resourceId: "site-1" },
-      { userId: "coord-1", userRoles: ["coordinator"], action: "Create", resourceType: "Site", resourceId: "site-1" },
-      { userId: "coord-1", userRoles: ["coordinator"], action: "Delete", resourceType: "Project", resourceId: "proj-1" },
+      { userId: "viewer-1", userRoles: ["viewer"], action: "View", resourceType: "Site", resourceId: "site-1" },
     ],
-    expected: [true, true, false],
-    policies: [
-      {
-        name: "coordinator.cedar",
-        type: "static",
-        code: `permit (
-    principal in Gazebo::Role::"coordinator",
-    action in [Gazebo::Action::"View", Gazebo::Action::"Edit", Gazebo::Action::"Create"],
-    resource
-);`,
-      },
-    ],
+    expected: [false, false, false],
+    policies: [],
   },
   {
     name: "Creator Privilege - Own Resources",
@@ -155,8 +73,8 @@ const SCENARIOS: Scenario[] = [
     ],
   },
   {
-    name: "No Role - Denied",
-    description: "Users without any role should be denied access (no matching policy)",
+    name: "No Role, No Creator - Denied",
+    description: "Users without roles and not the creator are denied (default deny)",
     requests: [
       { userId: "norole-1", userRoles: [], action: "View", resourceType: "Site", resourceId: "site-1" },
       { userId: "norole-1", userRoles: [], action: "Edit", resourceType: "Project", resourceId: "proj-1" },
@@ -188,6 +106,15 @@ const SITE_TEMPLATES: PolicyInfo[] = [
   },
   {
     name: "Site Coordinator Template",
+    type: "template",
+    code: `permit (
+    principal == ?principal,
+    action in [Gazebo::Action::"View", Gazebo::Action::"Edit", Gazebo::Action::"Create"],
+    resource in ?resource
+);`,
+  },
+  {
+    name: "Site Administrator Template",
     type: "template",
     code: `permit (
     principal == ?principal,

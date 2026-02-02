@@ -181,12 +181,16 @@ export function Introduction() {
           </thead>
           <tbody>
             <tr>
-              <td>Global Admin / Administrator</td>
-              <td>Static policy: user in Role::"globalAdmin" → permit all</td>
+              <td>Global Admin</td>
+              <td>Static policy: user in Role::"globalAdmin" → permit all (only truly global role)</td>
+            </tr>
+            <tr>
+              <td>Site Administrator</td>
+              <td>Template instance: User X → full access (all actions) to Site Y</td>
             </tr>
             <tr>
               <td>Site Coordinator</td>
-              <td>Template instance: User X → full access to Site Y</td>
+              <td>Template instance: User X → view + edit + create on Site Y</td>
             </tr>
             <tr>
               <td>Site Contributor</td>
@@ -195,6 +199,10 @@ export function Introduction() {
             <tr>
               <td>Site Viewer</td>
               <td>Template instance: User X → view only on Site Y</td>
+            </tr>
+            <tr>
+              <td>Creator Access</td>
+              <td>Static policy: resource.createdBy == principal → view + edit</td>
             </tr>
             <tr>
               <td>Project/Model in Site</td>

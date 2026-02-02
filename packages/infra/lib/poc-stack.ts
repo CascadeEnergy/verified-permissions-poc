@@ -76,10 +76,20 @@ export class PocStack extends cdk.Stack {
       policyStoreId: policyStore.attrPolicyStoreId,
       statement: `permit(
   principal == ?principal,
+  action in [Gazebo::Action::"View", Gazebo::Action::"Edit", Gazebo::Action::"Create"],
+  resource in ?resource
+);`,
+      description: "Grants view, edit, and create access to a site and its contents",
+    });
+
+    const siteAdministratorTemplate = new verifiedpermissions.CfnPolicyTemplate(this, "SiteAdministratorTemplate", {
+      policyStoreId: policyStore.attrPolicyStoreId,
+      statement: `permit(
+  principal == ?principal,
   action,
   resource in ?resource
 );`,
-      description: "Grants full access to a site and its contents",
+      description: "Grants full access to a site and its contents (including delete)",
     });
 
     // Permissions API Lambda
@@ -92,6 +102,7 @@ export class PocStack extends cdk.Stack {
         TEMPLATE_SITE_VIEWER: siteViewerTemplate.attrPolicyTemplateId,
         TEMPLATE_SITE_CONTRIBUTOR: siteContributorTemplate.attrPolicyTemplateId,
         TEMPLATE_SITE_COORDINATOR: siteCoordinatorTemplate.attrPolicyTemplateId,
+        TEMPLATE_SITE_ADMINISTRATOR: siteAdministratorTemplate.attrPolicyTemplateId,
       },
       timeout: cdk.Duration.seconds(30),
       bundling: {
