@@ -133,14 +133,15 @@ export async function buildEntities(
   addEntity(resourceEntity);
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // 4. Add remaining hierarchy entities (Region, Organization)
+  // 4. Add remaining hierarchy entities (Site, Region, Organization)
   //    This enables Cedar to traverse: Project → Site → Region → Organization
-  //    Note: Site is already added above with proper parents
+  //    Note: If the resource IS a Site, it's already added above with proper parents
   // ═══════════════════════════════════════════════════════════════════════════
   if (hierarchyChain) {
     for (const node of hierarchyChain.nodes) {
-      // Skip Site - it's already added as the resource entity
-      if (node.type === "Site") {
+      // Skip Site only if the resource itself is a Site (it's already added with parents)
+      // For Projects/Models, we still need to add the Site entity from hierarchy
+      if (node.type === "Site" && req.resourceType === "Site") {
         continue;
       }
 
