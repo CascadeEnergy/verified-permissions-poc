@@ -60,7 +60,22 @@ export async function buildEntities(
   addEntity(userEntity);
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // 2. Add resource entity with immediate parents
+  // 2. Fetch hierarchy chain FIRST (so we can set parents on resource entity)
+  // ═══════════════════════════════════════════════════════════════════════════
+  const siteId = req.resourceType === "Site" ? req.resourceId : req.resourceParentSite;
+  let hierarchyChain: { nodes: HierarchyNode[] } | null = null;
+
+  if (siteId) {
+    try {
+      hierarchyChain = await hierarchy.getSiteHierarchy(siteId);
+    } catch (error) {
+      // If hierarchy lookup fails, log but don't fail the request
+      console.warn(`Failed to fetch hierarchy for site ${siteId}:`, error);
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // 3. Add resource entity with proper parents from hierarchy
   // ═══════════════════════════════════════════════════════════════════════════
   const resourceEntity: any = {
     identifier: {
@@ -79,6 +94,17 @@ export async function buildEntities(
         entityId: req.resourceCreatedBy,
       },
     };
+  }
+
+  // If the resource IS a Site and we have hierarchy, use the hierarchy's parents
+  if (req.resourceType === "Site" && hierarchyChain) {
+    const siteNode = hierarchyChain.nodes.find(n => n.type === "Site" && n.id === req.resourceId);
+    if (siteNode) {
+      resourceEntity.parents = siteNode.parents.map((p) => ({
+        entityType: `Gazebo::${p.type}`,
+        entityId: p.id,
+      }));
+    }
   }
 
   // Add parent site if provided (for Project, Model, etc.)
@@ -107,37 +133,33 @@ export async function buildEntities(
   addEntity(resourceEntity);
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // 3. Fetch and add the full hierarchy chain
+  // 4. Add remaining hierarchy entities (Region, Organization)
   //    This enables Cedar to traverse: Project → Site → Region → Organization
+  //    Note: Site is already added above with proper parents
   // ═══════════════════════════════════════════════════════════════════════════
-  const siteId = req.resourceType === "Site" ? req.resourceId : req.resourceParentSite;
-
-  if (siteId) {
-    try {
-      const hierarchyChain = await hierarchy.getSiteHierarchy(siteId);
-
-      for (const node of hierarchyChain.nodes) {
-        addEntity({
-          identifier: {
-            entityType: `Gazebo::${node.type}`,
-            entityId: node.id,
-          },
-          attributes: {},
-          parents: node.parents.map((p) => ({
-            entityType: `Gazebo::${p.type}`,
-            entityId: p.id,
-          })),
-        });
+  if (hierarchyChain) {
+    for (const node of hierarchyChain.nodes) {
+      // Skip Site - it's already added as the resource entity
+      if (node.type === "Site") {
+        continue;
       }
-    } catch (error) {
-      // If hierarchy lookup fails, log but don't fail the request
-      // The authorization will still work, just without hierarchy traversal
-      console.warn(`Failed to fetch hierarchy for site ${siteId}:`, error);
+
+      addEntity({
+        identifier: {
+          entityType: `Gazebo::${node.type}`,
+          entityId: node.id,
+        },
+        attributes: {},
+        parents: node.parents.map((p) => ({
+          entityType: `Gazebo::${p.type}`,
+          entityId: p.id,
+        })),
+      });
     }
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // 4. Add role entities (needed for policy evaluation)
+  // 5. Add role entities (needed for policy evaluation)
   // ═══════════════════════════════════════════════════════════════════════════
   ROLES.forEach((role) => {
     addEntity({
