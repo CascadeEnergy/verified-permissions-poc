@@ -212,7 +212,7 @@ export class PocStack extends cdk.Stack {
     const permissionsLambda = new lambdaNodejs.NodejsFunction(this, "PermissionsApi", {
       entry: path.join(__dirname, "../../lambdas/permissions-api/index.ts"),
       handler: "handler",
-      runtime: lambda.Runtime.NODEJS_18_X,
+      runtime: lambda.Runtime.NODEJS_20_X,
       environment: {
         POLICY_STORE_ID: policyStore.attrPolicyStoreId,
         TEMPLATE_VIEWER: viewerTemplate.attrPolicyTemplateId,
@@ -233,7 +233,7 @@ export class PocStack extends cdk.Stack {
     const authorizeLambda = new lambdaNodejs.NodejsFunction(this, "AuthorizeApi", {
       entry: path.join(__dirname, "../../lambdas/authorize-api/index.ts"),
       handler: "handler",
-      runtime: lambda.Runtime.NODEJS_18_X,
+      runtime: lambda.Runtime.NODEJS_20_X,
       environment: {
         POLICY_STORE_ID: policyStore.attrPolicyStoreId,
       },

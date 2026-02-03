@@ -47,6 +47,9 @@ export class PipelineStack extends cdk.Stack {
         input: pipelines.CodePipelineSource.gitHub(`${repoOwner}/${repoName}`, branch, {
           authentication: cdk.SecretValue.secretsManager("CascadeEnergy"),
         }),
+        installCommands: [
+          "n 20",  // Use Node 20
+        ],
         commands: [
           "cd packages/infra",
           "npm ci",
@@ -74,6 +77,9 @@ export class PipelineStack extends cdk.Stack {
         BUCKET_NAME: deploy.bucketName,
         DISTRIBUTION_ID: deploy.distributionId,
       },
+      installCommands: [
+        "n 20",  // Use Node 20
+      ],
       commands: [
         "cd packages/frontend",
         "npm ci",
@@ -113,6 +119,9 @@ export class PipelineStack extends cdk.Stack {
         API_URL: deploy.apiUrl,
         WEBSITE_URL: deploy.websiteUrl,
       },
+      installCommands: [
+        "n 20",  // Use Node 20
+      ],
       commands: [
         "cd packages/frontend",
         "npm ci",
