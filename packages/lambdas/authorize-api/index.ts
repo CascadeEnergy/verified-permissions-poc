@@ -40,7 +40,7 @@ export const handler: APIGatewayProxyHandlerV2 = async (event): Promise<APIGatew
         };
       }
 
-      const entities = buildEntities(body);
+      const entities = await buildEntities(body);
 
       const command = new IsAuthorizedCommand({
         policyStoreId: POLICY_STORE_ID,
@@ -105,7 +105,7 @@ export const handler: APIGatewayProxyHandlerV2 = async (event): Promise<APIGatew
       // Combine entities from all requests (deduplicated by identifier)
       const entityMap = new Map<string, any>();
       for (const req of body.requests) {
-        const { entityList } = buildEntities(req);
+        const { entityList } = await buildEntities(req);
         for (const entity of entityList) {
           const key = `${entity.identifier.entityType}::${entity.identifier.entityId}`;
           if (!entityMap.has(key)) {

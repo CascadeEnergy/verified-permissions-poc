@@ -2,56 +2,88 @@ import { useState } from "react";
 import { api } from "../api/client";
 import { Action, AuthRequest } from "../types/gazebo";
 
-// Example sites (these would match what's in the policy store)
-const EXAMPLE_SITES = [
-  { id: "portland-manufacturing", name: "Portland Manufacturing" },
-  { id: "seattle-warehouse", name: "Seattle Warehouse" },
-  { id: "denver-office", name: "Denver Office" },
-];
+// Mock hierarchy data - mirrors the backend mock data
+// In production, this comes from company-service (DynamoDB) and site-service (OpenSearch)
+const MOCK_HIERARCHY = {
+  organizations: {
+    "1": { id: "1", name: "Cascade Energy" },
+    "100": { id: "100", name: "Energy Trust of Oregon" },
+    "200": { id: "200", name: "Goodwill Industries" },
+  },
+  regions: {
+    "10": { id: "10", name: "West Region", orgId: "1" },
+    "11": { id: "11", name: "East Region", orgId: "1" },
+    "101": { id: "101", name: "Industrial Programs", orgId: "100" },
+    "201": { id: "201", name: "Portland Metro", orgId: "200" },
+  },
+  sites: {
+    "portland-manufacturing": { id: "portland-manufacturing", name: "Portland Manufacturing", regionId: "10" },
+    "seattle-hq": { id: "seattle-hq", name: "Seattle Headquarters", regionId: "10" },
+    "boston-office": { id: "boston-office", name: "Boston Office", regionId: "11" },
+    "cascade-corporate": { id: "cascade-corporate", name: "Cascade Corporate HQ", orgId: "1" }, // Direct to org, no region
+    "goodwill-happy-valley": { id: "goodwill-happy-valley", name: "Goodwill Happy Valley", regionId: "201" },
+  },
+};
+
+// Build site list with hierarchy path
+const EXAMPLE_SITES = Object.values(MOCK_HIERARCHY.sites).map((site: any) => {
+  let hierarchy: string;
+  if (site.regionId) {
+    const region = MOCK_HIERARCHY.regions[site.regionId as keyof typeof MOCK_HIERARCHY.regions];
+    const org = MOCK_HIERARCHY.organizations[region.orgId as keyof typeof MOCK_HIERARCHY.organizations];
+    hierarchy = `${org.name} → ${region.name}`;
+  } else if (site.orgId) {
+    const org = MOCK_HIERARCHY.organizations[site.orgId as keyof typeof MOCK_HIERARCHY.organizations];
+    hierarchy = org.name;
+  } else {
+    hierarchy = "Unknown";
+  }
+  return { id: site.id, name: site.name, hierarchy };
+});
 
 // Example users with their known permissions
 const EXAMPLE_USERS = [
   {
     id: "alice@example.com",
     name: "Alice",
-    description: "Coordinator on Portland Manufacturing",
+    description: "Coordinator on Portland Manufacturing (Site-level)",
     permissions: "Can View, Edit, Create, Delete on portland-manufacturing",
+    scope: "Site",
   },
   {
     id: "bob@example.com",
     name: "Bob",
-    description: "Champion on Portland Manufacturing",
+    description: "Champion on Portland Manufacturing (Site-level)",
     permissions: "Can View, Edit, Create on portland-manufacturing",
-  },
-  {
-    id: "carol@example.com",
-    name: "Carol",
-    description: "Viewer on Seattle Warehouse",
-    permissions: "Can only View on seattle-warehouse",
+    scope: "Site",
   },
   {
     id: "dan@cascade.com",
     name: "Dan",
-    description: "Facilitator on West Region",
-    permissions: "Can View, Edit, Create on all sites in west-region",
+    description: "Facilitator on West Region (Region-level)",
+    permissions: "Can View, Edit, Create on ALL sites in West Region (portland-manufacturing, seattle-hq)",
+    scope: "Region",
   },
   {
     id: "eve@example.com",
     name: "Eve",
-    description: "Contributor on Portland Manufacturing",
-    permissions: "Can View, Edit on portland-manufacturing",
+    description: "Contributor on Cascade Energy (Organization-level)",
+    permissions: "Can View, Edit on ALL sites in Cascade Energy",
+    scope: "Organization",
   },
   {
     id: "admin@cascade.com",
     name: "Admin",
-    description: "Global Admin",
-    permissions: "Can do anything anywhere (static policy)",
+    description: "Global Admin (static policy)",
+    permissions: "Can do anything anywhere",
+    scope: "Global",
   },
   {
     id: "nobody@example.com",
     name: "Nobody",
     description: "No permissions assigned",
     permissions: "Should be denied everything",
+    scope: "None",
   },
 ];
 
@@ -105,7 +137,46 @@ export function Playground() {
       ...(projectCreator ? { resourceCreatedBy: projectCreator } : {}),
     };
 
+    // Build the hierarchy chain for the selected site
+    const buildHierarchyEntities = () => {
+      const site = MOCK_HIERARCHY.sites[selectedSite as keyof typeof MOCK_HIERARCHY.sites] as any;
+      if (!site) return [];
+
+      const entities: any[] = [];
+
+      if (site.regionId) {
+        // Site → Region → Organization
+        const region = MOCK_HIERARCHY.regions[site.regionId as keyof typeof MOCK_HIERARCHY.regions];
+
+        entities.push({
+          identifier: { entityType: "Gazebo::Site", entityId: selectedSite },
+          parents: [{ entityType: "Gazebo::Region", entityId: site.regionId }],
+        });
+        entities.push({
+          identifier: { entityType: "Gazebo::Region", entityId: site.regionId },
+          parents: [{ entityType: "Gazebo::Organization", entityId: region.orgId }],
+        });
+        entities.push({
+          identifier: { entityType: "Gazebo::Organization", entityId: region.orgId },
+          parents: [],
+        });
+      } else if (site.orgId) {
+        // Site → Organization (no region)
+        entities.push({
+          identifier: { entityType: "Gazebo::Site", entityId: selectedSite },
+          parents: [{ entityType: "Gazebo::Organization", entityId: site.orgId }],
+        });
+        entities.push({
+          identifier: { entityType: "Gazebo::Organization", entityId: site.orgId },
+          parents: [],
+        });
+      }
+
+      return entities;
+    };
+
     // Build what the actual AVP request looks like (for educational display)
+    const hierarchyEntities = buildHierarchyEntities();
     const avpRequestForDisplay = {
       policyStoreId: "ps-xxxxxxxx",
       principal: {
@@ -131,9 +202,8 @@ export function Playground() {
               }
             } : {}),
           },
-          {
-            identifier: { entityType: "Gazebo::Site", entityId: selectedSite },
-          },
+          // Full hierarchy chain from site-service and company-service
+          ...hierarchyEntities,
           ...(selectedUser === "admin@cascade.com" ? [{
             identifier: { entityType: "Gazebo::User", entityId: selectedUser },
             parents: [{ entityType: "Gazebo::Role", entityId: "globalAdmin" }],
@@ -177,6 +247,17 @@ export function Playground() {
 
     const user = EXAMPLE_USERS.find((u) => u.id === selectedUser);
     const site = EXAMPLE_SITES.find((s) => s.id === selectedSite);
+    const siteData = MOCK_HIERARCHY.sites[selectedSite as keyof typeof MOCK_HIERARCHY.sites] as any;
+
+    // Get the site's hierarchy for explanation
+    let siteRegion = null;
+    let siteOrg = null;
+    if (siteData?.regionId) {
+      siteRegion = MOCK_HIERARCHY.regions[siteData.regionId as keyof typeof MOCK_HIERARCHY.regions];
+      siteOrg = MOCK_HIERARCHY.organizations[siteRegion.orgId as keyof typeof MOCK_HIERARCHY.organizations];
+    } else if (siteData?.orgId) {
+      siteOrg = MOCK_HIERARCHY.organizations[siteData.orgId as keyof typeof MOCK_HIERARCHY.organizations];
+    }
 
     if (authResult.allowed) {
       if (selectedUser === "admin@cascade.com") {
@@ -184,6 +265,12 @@ export function Playground() {
       }
       if (projectCreator === selectedUser && (selectedAction === "View" || selectedAction === "Edit")) {
         return `ALLOWED: The creator-privilege static policy permits users to View and Edit resources they created. Since ${user?.name} created this project, they have access regardless of other role assignments.`;
+      }
+      if (user?.scope === "Region" && siteRegion) {
+        return `ALLOWED: ${user?.name} has a template-linked policy on Region "${siteRegion.name}". Cedar traverses the hierarchy: Project → Site → Region, and finds that "${site?.name}" is in the West Region. The "${selectedAction}" action is within their permitted actions.`;
+      }
+      if (user?.scope === "Organization" && siteOrg) {
+        return `ALLOWED: ${user?.name} has a template-linked policy on Organization "${siteOrg.name}". Cedar traverses: Project → Site → Region → Organization, finding the match. The "${selectedAction}" action is permitted.`;
       }
       return `ALLOWED: ${user?.name} has a template-linked policy granting ${user?.permissions}. Since the project "${projectName}" is in ${site?.name}, and ${selectedAction} is within their permitted actions, access is granted.`;
     } else {
@@ -194,9 +281,18 @@ export function Playground() {
       if (selectedUser === "nobody@example.com") {
         return `DENIED: ${user?.name} has no role assignments and is not the creator of this resource. In Cedar/AVP, the default is to deny access when no policy explicitly permits it.`;
       }
-      const userSiteMatch = user?.permissions.toLowerCase().includes(selectedSite);
-      if (!userSiteMatch) {
-        return `DENIED: ${user?.name}'s permissions are for a different resource. They have: "${user?.permissions}" but this project is in ${site?.name}. Permission assignments are resource-specific.`;
+      // Check if the site is in the user's region/org
+      if (user?.scope === "Region" && siteRegion) {
+        const isInWestRegion = siteData?.regionId === "10";
+        if (!isInWestRegion) {
+          return `DENIED: ${user?.name} has permissions on West Region, but "${site?.name}" is in ${siteRegion.name}. Cedar traverses the hierarchy but finds no match for the user's policy scope.`;
+        }
+      }
+      if (user?.scope === "Organization" && siteOrg) {
+        const isInCascade = siteOrg.id === "1";
+        if (!isInCascade) {
+          return `DENIED: ${user?.name} has permissions on Cascade Energy, but "${site?.name}" belongs to ${siteOrg.name}. The hierarchy doesn't connect to the user's policy scope.`;
+        }
       }
       return `DENIED: ${user?.name} does not have the "${selectedAction}" action permitted. Their permissions (${user?.permissions}) don't include this action for this resource.`;
     }
@@ -269,7 +365,7 @@ export function Playground() {
                 >
                   {EXAMPLE_SITES.map((site) => (
                     <option key={site.id} value={site.id}>
-                      {site.name} ({site.id})
+                      {site.name} — {site.hierarchy}
                     </option>
                   ))}
                 </select>
@@ -312,11 +408,42 @@ export function Playground() {
 
             <div className="code-block" style={{ marginTop: "16px" }}>
               <div style={{ fontSize: "12px", color: "#666", marginBottom: "4px" }}>
-                Resource that will be created:
+                Resource hierarchy (from site-service + company-service):
               </div>
-              <pre style={{ margin: 0 }}>{`Gazebo::Project::"${projectName}"
-  └── memberOf: Gazebo::Site::"${selectedSite}"${projectCreator ? `
-  └── createdBy: Gazebo::User::"${projectCreator}"` : ""}`}</pre>
+              <pre style={{ margin: 0 }}>{(() => {
+                const site = MOCK_HIERARCHY.sites[selectedSite as keyof typeof MOCK_HIERARCHY.sites] as any;
+                if (!site) return `Gazebo::Project::"${projectName}"\n  └── memberOf: Gazebo::Site::"${selectedSite}"`;
+
+                if (site.regionId) {
+                  const region = MOCK_HIERARCHY.regions[site.regionId as keyof typeof MOCK_HIERARCHY.regions];
+                  const org = MOCK_HIERARCHY.organizations[region.orgId as keyof typeof MOCK_HIERARCHY.organizations];
+                  return `Gazebo::Project::"${projectName}"${projectCreator ? `\n  └── createdBy: User::"${projectCreator}"` : ""}
+  └── memberOf: Gazebo::Site::"${selectedSite}" (${site.name})
+        └── memberOf: Gazebo::Region::"${site.regionId}" (${region.name})
+              └── memberOf: Gazebo::Organization::"${region.orgId}" (${org.name})`;
+                } else if (site.orgId) {
+                  const org = MOCK_HIERARCHY.organizations[site.orgId as keyof typeof MOCK_HIERARCHY.organizations];
+                  return `Gazebo::Project::"${projectName}"${projectCreator ? `\n  └── createdBy: User::"${projectCreator}"` : ""}
+  └── memberOf: Gazebo::Site::"${selectedSite}" (${site.name})
+        └── memberOf: Gazebo::Organization::"${site.orgId}" (${org.name})`;
+                }
+                return "";
+              })()}</pre>
+            </div>
+
+            <div style={{
+              marginTop: "12px",
+              padding: "12px",
+              background: "#e3f2fd",
+              borderRadius: "4px",
+              fontSize: "13px"
+            }}>
+              <strong>Key insight:</strong> The backend fetches this hierarchy from existing services
+              (company-service, site-service) and passes it to AVP. This enables Cedar to traverse
+              <code style={{ background: "#fff", padding: "2px 4px", borderRadius: "2px", margin: "0 4px" }}>
+                resource in Region::"10"
+              </code>
+              and match a Project that's in a Site that's in that Region.
             </div>
 
             <button

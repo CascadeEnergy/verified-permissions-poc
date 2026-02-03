@@ -123,49 +123,60 @@ export function Introduction() {
         </div>
 
         <div className="concept">
-          <h3>6. Entity Data & Conditional Policies</h3>
+          <h3>6. Entity Data & Hierarchy (You Must Provide It!)</h3>
           <p>
-            Policies can use <code>when</code> clauses to check <strong>entity attributes</strong>.
-            AVP doesn't store entity data — you provide it with each authorization request.
+            <strong>AVP doesn't store your entity data or hierarchy.</strong> You must provide
+            the full hierarchy chain with each authorization request. This includes:
           </p>
+          <ul style={{ marginTop: "8px", marginBottom: "12px", paddingLeft: "24px" }}>
+            <li>Entity attributes (like <code>createdBy</code>)</li>
+            <li>Parent relationships (Project → Site → Region → Organization)</li>
+          </ul>
           <div className="code-example">
-            <div className="code-header">Policy: Creator can edit their own resources</div>
+            <div className="code-header">Policy using hierarchy: User has access to Region</div>
             <pre>{`permit (
-  principal,
+  principal == ?principal,
   action in [Gazebo::Action::"View", Gazebo::Action::"Edit"],
-  resource
-) when {
-  resource has createdBy && resource.createdBy == principal
-};`}</pre>
+  resource in ?resource   // ?resource = Region::"west-region"
+);`}</pre>
           </div>
           <p>
-            For this policy to work, your app must include the resource's <code>createdBy</code>{" "}
-            attribute in the authorization request:
+            For Cedar to evaluate <code>resource in Region::"west-region"</code>, it needs to
+            traverse: Project → Site → Region. <strong>You must provide this chain:</strong>
           </p>
           <div className="code-example">
-            <div className="code-header">Authorization request with entity data</div>
+            <div className="code-header">Authorization request with FULL hierarchy chain</div>
             <pre>{`{
-  "principal": { "entityType": "Gazebo::User", "entityId": "user-1" },
+  "principal": { "entityType": "Gazebo::User", "entityId": "dan@cascade.com" },
   "action": { "actionType": "Gazebo::Action", "actionId": "Edit" },
-  "resource": { "entityType": "Gazebo::Project", "entityId": "proj-1" },
+  "resource": { "entityType": "Gazebo::Project", "entityId": "my-project" },
   "entities": {
     "entityList": [
       {
-        "identifier": { "entityType": "Gazebo::Project", "entityId": "proj-1" },
-        "attributes": {
-          "createdBy": {
-            "entityIdentifier": { "entityType": "Gazebo::User", "entityId": "user-1" }
-          }
-        }
+        "identifier": { "entityType": "Gazebo::Project", "entityId": "my-project" },
+        "parents": [{ "entityType": "Gazebo::Site", "entityId": "portland-mfg" }]
+      },
+      {
+        "identifier": { "entityType": "Gazebo::Site", "entityId": "portland-mfg" },
+        "parents": [{ "entityType": "Gazebo::Region", "entityId": "west-region" }]
+      },
+      {
+        "identifier": { "entityType": "Gazebo::Region", "entityId": "west-region" },
+        "parents": [{ "entityType": "Gazebo::Organization", "entityId": "cascade" }]
+      },
+      {
+        "identifier": { "entityType": "Gazebo::Organization", "entityId": "cascade" },
+        "parents": []
       }
     ]
   }
 }`}</pre>
           </div>
-          <p className="note">
-            <strong>Key insight:</strong> Your app fetches the resource from your database,
-            then includes relevant attributes in the auth request. This means no need to sync
-            entity data to AVP — you control exactly what's available for each request.
+          <p className="note" style={{ background: "#fff3e0", border: "1px solid #ffb74d" }}>
+            <strong>Critical:</strong> If you only provide the Site without its Region parent,
+            Cedar cannot traverse the hierarchy and policies scoped to Region will NOT match.
+            The authorization service must fetch hierarchy from your existing data stores
+            (company-service, site-service) and include it in every request.
           </p>
         </div>
 
@@ -270,30 +281,59 @@ export function Introduction() {
 
       <section>
         <h2>Authorization Flow</h2>
-        <div className="flow">
+        <div className="flow" style={{ flexWrap: "wrap", gap: "8px" }}>
           <div className="flow-step">
             <div className="step-number">1</div>
             <div className="step-content">
               <strong>Request</strong>
-              <p>App asks: "Can User:alice do Action:Edit on Project:proj-123?"</p>
+              <p>App asks: "Can Dan edit Project in Portland Mfg?"</p>
             </div>
           </div>
           <div className="flow-arrow">→</div>
-          <div className="flow-step">
+          <div className="flow-step" style={{ background: "#fff3e0", border: "1px solid #ffb74d" }}>
             <div className="step-number">2</div>
             <div className="step-content">
-              <strong>Evaluate</strong>
-              <p>AVP checks all policies. Finds: Alice has contributor role on Site:building-a, and proj-123 is in that site.</p>
+              <strong>Build Hierarchy</strong>
+              <p>Auth service queries site-service & company-service to get: Site → Region → Org chain</p>
             </div>
           </div>
           <div className="flow-arrow">→</div>
           <div className="flow-step">
             <div className="step-number">3</div>
             <div className="step-content">
-              <strong>Decision</strong>
-              <p>ALLOW (contributor template permits View + Edit on resources in the site)</p>
+              <strong>Call AVP</strong>
+              <p>Send request with full entity hierarchy to AVP</p>
             </div>
           </div>
+          <div className="flow-arrow">→</div>
+          <div className="flow-step">
+            <div className="step-number">4</div>
+            <div className="step-content">
+              <strong>Evaluate</strong>
+              <p>Cedar traverses: Project → Site → Region. Finds Dan's policy on Region.</p>
+            </div>
+          </div>
+          <div className="flow-arrow">→</div>
+          <div className="flow-step">
+            <div className="step-number">5</div>
+            <div className="step-content">
+              <strong>Decision</strong>
+              <p>ALLOW (Dan's template permits Edit on West Region, and Portland Mfg is in West Region)</p>
+            </div>
+          </div>
+        </div>
+        <div className="code-example" style={{ marginTop: "16px" }}>
+          <div className="code-header">Step 2: Hierarchy lookup (from existing services)</div>
+          <pre>{`// site-service: GET /site/portland-mfg
+{ "siteId": "portland-mfg", "companyId": "region:10" }
+
+// company-service: GET /company/10  (West Region)
+{ "companyId": 10, "name": "West Region", "parentId": 1 }
+
+// company-service: GET /company/1   (Cascade Energy)
+{ "companyId": 1, "name": "Cascade Energy", "parentId": null }
+
+// Result: Site:portland-mfg → Region:10 → Organization:1`}</pre>
         </div>
       </section>
 
