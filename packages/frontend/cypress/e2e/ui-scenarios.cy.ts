@@ -35,6 +35,10 @@ describe("UI Test Scenarios", () => {
     });
 
     it("should run all scenarios and pass", () => {
+      // First, set up the test policies for hierarchy scenarios
+      cy.contains("button", "Create Test Policies").click();
+      cy.contains("Ready", { timeout: 30000 }).should("be.visible");
+
       // Click Run All Scenarios
       cy.contains("button", "Run All Scenarios").click();
 
@@ -42,14 +46,17 @@ describe("UI Test Scenarios", () => {
       cy.contains("button", "Running...").should("be.visible");
       cy.contains("button", "Run All Scenarios", { timeout: 30000 }).should("be.visible");
 
-      // Check that results show 4/4 passed
-      cy.contains("Results: 4/4 passed", { timeout: 10000 }).should("be.visible");
+      // Check that results show 7/7 passed (4 basic + 3 hierarchy scenarios)
+      cy.contains("Results: 7/7 passed", { timeout: 10000 }).should("be.visible");
 
       // Verify each scenario passed
       cy.contains(".scenario.passed", "Global Admin - Full Access").should("exist");
       cy.contains(".scenario.passed", "Roles Without Assignment - Denied").should("exist");
       cy.contains(".scenario.passed", "Creator Privilege - Own Resources").should("exist");
       cy.contains(".scenario.passed", "No Role, No Creator - Denied").should("exist");
+      cy.contains(".scenario.passed", "Hierarchy: Site-Level Access").should("exist");
+      cy.contains(".scenario.passed", "Hierarchy: Region-Level Access").should("exist");
+      cy.contains(".scenario.passed", "Hierarchy: Organization-Level Access").should("exist");
     });
 
     it("should show individual check results for each scenario", () => {
