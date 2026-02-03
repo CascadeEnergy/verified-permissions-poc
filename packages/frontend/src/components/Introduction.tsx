@@ -302,7 +302,9 @@ export function Introduction() {
         <p>Use the tabs above to:</p>
         <ul>
           <li><strong>Policy Store</strong> – Explore the schema, static policies, templates, and any user assignments</li>
-          <li><strong>Test Scenarios</strong> – Run pre-built test cases and see which policies apply to each check</li>
+          <li><strong>Phase 1 Scenarios</strong> – Test the Organization hierarchy (Org → Region → Site → Project/Model)</li>
+          <li><strong>Phase 2 Scenarios</strong> – Test the Program Layer hierarchy (Client → Program → Cohort → Participation → Site)</li>
+          <li><strong>Playground</strong> – Interactive walkthrough of creating projects and testing authorization</li>
         </ul>
       </section>
     </div>

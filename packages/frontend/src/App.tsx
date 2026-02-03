@@ -2,9 +2,10 @@ import { useState } from "react";
 import { Introduction } from "./components/Introduction";
 import { PolicyStoreViewer } from "./components/PolicyStoreViewer";
 import { ScenarioRunner } from "./components/ScenarioRunner";
+import { Phase2ScenarioRunner } from "./components/Phase2ScenarioRunner";
 import { Playground } from "./components/Playground";
 
-type Tab = "intro" | "policystore" | "scenarios" | "playground";
+type Tab = "intro" | "policystore" | "scenarios" | "phase2" | "playground";
 
 function App() {
   const [activeTab, setActiveTab] = useState<Tab>("intro");
@@ -42,7 +43,13 @@ function App() {
           className={`tab ${activeTab === "scenarios" ? "active" : ""}`}
           onClick={() => setActiveTab("scenarios")}
         >
-          Test Scenarios
+          Phase 1 Scenarios
+        </button>
+        <button
+          className={`tab ${activeTab === "phase2" ? "active" : ""}`}
+          onClick={() => setActiveTab("phase2")}
+        >
+          Phase 2 Scenarios
         </button>
         <button
           className={`tab ${activeTab === "playground" ? "active" : ""}`}
@@ -55,6 +62,7 @@ function App() {
       {activeTab === "intro" && <Introduction />}
       {activeTab === "policystore" && <PolicyStoreViewer />}
       {activeTab === "scenarios" && <ScenarioRunner />}
+      {activeTab === "phase2" && <Phase2ScenarioRunner />}
       {activeTab === "playground" && <Playground />}
     </div>
   );

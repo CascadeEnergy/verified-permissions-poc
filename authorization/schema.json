@@ -42,7 +42,7 @@
             "name": { "type": "String", "required": false }
           }
         },
-        "memberOfTypes": ["Region", "Organization"]
+        "memberOfTypes": ["Region", "Organization", "Participation"]
       },
       "Project": {
         "shape": {
@@ -71,37 +71,108 @@
             "name": { "type": "String", "required": false }
           }
         }
+      },
+      "Claim": {
+        "shape": {
+          "type": "Record",
+          "attributes": {
+            "name": { "type": "String", "required": false },
+            "participationId": { "type": "String", "required": false },
+            "cycleId": { "type": "String", "required": false }
+          }
+        },
+        "memberOfTypes": ["Site"]
+      },
+      "Client": {
+        "shape": {
+          "type": "Record",
+          "attributes": {
+            "name": { "type": "String", "required": false }
+          }
+        }
+      },
+      "Program": {
+        "shape": {
+          "type": "Record",
+          "attributes": {
+            "name": { "type": "String", "required": false },
+            "implementerId": { "type": "String", "required": false }
+          }
+        },
+        "memberOfTypes": ["Client"]
+      },
+      "Cohort": {
+        "shape": {
+          "type": "Record",
+          "attributes": {
+            "name": { "type": "String", "required": false },
+            "startDate": { "type": "String", "required": false },
+            "endDate": { "type": "String", "required": false },
+            "implementerId": { "type": "String", "required": false }
+          }
+        },
+        "memberOfTypes": ["Program"]
+      },
+      "Cycle": {
+        "shape": {
+          "type": "Record",
+          "attributes": {
+            "name": { "type": "String", "required": false },
+            "type": { "type": "String", "required": false },
+            "startDate": { "type": "String", "required": false },
+            "endDate": { "type": "String", "required": false }
+          }
+        },
+        "memberOfTypes": ["Cohort"]
+      },
+      "Participation": {
+        "shape": {
+          "type": "Record",
+          "attributes": {
+            "joinDate": { "type": "String", "required": false },
+            "leaveDate": { "type": "String", "required": false }
+          }
+        },
+        "memberOfTypes": ["Cohort"]
+      },
+      "Implementer": {
+        "shape": {
+          "type": "Record",
+          "attributes": {
+            "name": { "type": "String", "required": false }
+          }
+        }
       }
     },
     "actions": {
       "View": {
         "appliesTo": {
           "principalTypes": ["User"],
-          "resourceTypes": ["Site", "Project", "Model", "Module", "Organization", "Region"]
+          "resourceTypes": ["Site", "Project", "Model", "Module", "Organization", "Region", "Claim", "Client", "Program", "Cohort", "Cycle", "Participation", "Implementer"]
         }
       },
       "Edit": {
         "appliesTo": {
           "principalTypes": ["User"],
-          "resourceTypes": ["Site", "Project", "Model"]
+          "resourceTypes": ["Site", "Project", "Model", "Claim", "Client", "Program", "Cohort", "Participation"]
         }
       },
       "Create": {
         "appliesTo": {
           "principalTypes": ["User"],
-          "resourceTypes": ["Site"]
+          "resourceTypes": ["Site", "Claim", "Program", "Cohort", "Cycle", "Participation"]
         }
       },
       "Delete": {
         "appliesTo": {
           "principalTypes": ["User"],
-          "resourceTypes": ["Site", "Project", "Model"]
+          "resourceTypes": ["Site", "Project", "Model", "Claim", "Program", "Cohort", "Participation"]
         }
       },
       "Admin": {
         "appliesTo": {
           "principalTypes": ["User"],
-          "resourceTypes": ["Site", "Organization"]
+          "resourceTypes": ["Site", "Organization", "Client", "Program", "Cohort"]
         }
       }
     }
