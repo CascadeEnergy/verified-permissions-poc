@@ -689,3 +689,313 @@ const modules = await access.getAccessibleModules({
 | "User X should not access Site Y" | | ✅ |
 | "This feature is in beta for staging only" | ✅ | |
 | "Coordinators can edit, Viewers can only read" | | ✅ |
+
+---
+
+# Refined Proposal: Expand cascade-features
+
+## Why Expand cascade-features Instead of New SDK?
+
+| Aspect | New SDK | Expand cascade-features |
+|--------|---------|-------------------------|
+| Infrastructure | Build from scratch | Already has CI/CD, npm, SSM |
+| Context model | Define new | Already has userId, orgs, regions, sites, roles |
+| Adoption | New dependency for all apps | Apps already use it |
+| Naming | Yet another package | One place for "access decisions" |
+| Mental model | "features" vs "access" confusion | "cascade-features" becomes "cascade-access" |
+
+**Recommendation:** Expand `cascade-features` → rename to `cascade-access` (or keep name, expand scope).
+
+---
+
+## Should customer-www Have Granular Modules?
+
+### Current State
+
+**admin-www:** 21 distinct modules, each route declares its module
+**customer-www:** 1 module (`customer-www`), then site-level checks inside
+
+But customer-www actually has distinct features:
+- Explore (charts, data visualization)
+- Projects (project management)
+- Models (energy models)
+- EIS (Energy Information System)
+- Home (dashboard/landing)
+- Goals
+- Tasks
+- Workbooks
+
+### The Question
+
+Should we do this?
+```
+Module::"customer-www"           ← Current (one module)
+```
+
+Or this?
+```
+Module::"explore"                ← Granular modules
+Module::"projects"
+Module::"models"
+Module::"eis"
+Module::"goals"
+Module::"tasks"
+```
+
+### Recommendation: Yes, One Unified System
+
+**Arguments for granular modules everywhere:**
+
+1. **Consistency** - Same pattern in admin-www and customer-www
+2. **Flexibility** - Can sell/enable features independently ("Org X gets Projects but not Models")
+3. **Simpler mental model** - "Module = feature you can access"
+4. **Already exists** - customer-www's Navigation system is basically this, just implemented differently
+
+**The unified model:**
+
+```
+┌────────────────────────────────────────────────────────────────┐
+│                        CASCADE-ACCESS                          │
+├────────────────────────────────────────────────────────────────┤
+│                                                                │
+│  ConfigCat (Feature Flags)     AVP (Authorization)             │
+│  ─────────────────────────     ────────────────────            │
+│  • Rollouts                    • Module access                 │
+│  • Experiments                 • Data access                   │
+│  • Kill switches               • Role-based rules              │
+│                                • Org-based rules               │
+│                                                                │
+└────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Unified Module List (All Apps)
+
+| Module ID | App | Description |
+|-----------|-----|-------------|
+| **Admin Modules** | | |
+| `admin:users` | admin-www | User management |
+| `admin:organizations` | admin-www | Organization management |
+| `admin:sites` | admin-www | Site management |
+| `admin:measurables` | admin-www | Measurable management |
+| `admin:measurement-data` | admin-www | Measurement data editing |
+| `admin:dashboards` | admin-www | Dashboard management |
+| `admin:exports` | admin-www | Data exports |
+| `admin:devices` | admin-www | Device configuration |
+| `admin:saved-views` | admin-www | Saved view management |
+| `admin:permissions` | admin-www | Permission explorer |
+| `admin:file-status` | admin-www | File status tracking |
+| `admin:meter-health` | admin-www | Meter health reports |
+| **Customer Modules** | | |
+| `customer:explore` | customer-www | Data exploration & charts |
+| `customer:projects` | customer-www | Project management |
+| `customer:models` | customer-www | Energy models |
+| `customer:eis` | customer-www | Energy Information System |
+| `customer:home` | customer-www | Home dashboard |
+| `customer:goals` | customer-www | Goal tracking |
+| `customer:tasks` | customer-www | Task management |
+| `customer:workbooks` | customer-www | Workbook reports |
+| **Explore Modules** | | |
+| `explore:dashboard` | explore-www | Legacy dashboard |
+| `explore:reports` | explore-www | Legacy reports |
+
+**Naming convention:** `{app}:{feature}` for clarity
+
+---
+
+## Expanded cascade-features API
+
+```typescript
+// @sensei/cascade-features (expanded)
+
+import { createAccessClient } from "@sensei/cascade-features";
+
+const access = await createAccessClient({
+  // Existing ConfigCat config
+  configCat: {
+    apiKeyParameterName: "/ConfigCat/API_KEY",
+  },
+  // New AVP config
+  avp: {
+    policyStoreId: "ps-xxxx",
+    region: "us-west-2",
+  },
+  environment: "production",
+});
+
+// ─────────────────────────────────────────────────────────────
+// FEATURE FLAGS (ConfigCat) - unchanged
+// ─────────────────────────────────────────────────────────────
+
+const flags = await access.getFeatureFlags(context);
+// Returns: { "new-chart-ui": true, "beta-export": false }
+
+// ─────────────────────────────────────────────────────────────
+// MODULE ACCESS (AVP) - new
+// ─────────────────────────────────────────────────────────────
+
+// Check single module
+const canAccessProjects = await access.canAccessModule("customer:projects", {
+  userId: "alice@example.com",
+  orgId: "100",
+  role: "coordinator",
+});
+// Returns: boolean
+
+// Get all accessible modules (for nav rendering)
+const modules = await access.getAccessibleModules({
+  userId: "alice@example.com",
+  orgId: "100",
+  role: "coordinator",
+});
+// Returns: ["customer:explore", "customer:projects", "customer:home"]
+
+// ─────────────────────────────────────────────────────────────
+// DATA ACCESS (AVP) - new
+// ─────────────────────────────────────────────────────────────
+
+// Check resource access
+const canEditSite = await access.canAccess({
+  principal: { type: "User", id: "alice@example.com" },
+  action: "Edit",
+  resource: { type: "Site", id: "portland-manufacturing" },
+});
+// Returns: boolean
+
+// Batch check (for UI rendering)
+const permissions = await access.batchCanAccess([
+  { action: "View", resource: { type: "Site", id: "site-1" } },
+  { action: "Edit", resource: { type: "Site", id: "site-1" } },
+  { action: "Delete", resource: { type: "Site", id: "site-1" } },
+], { userId: "alice@example.com" });
+// Returns: [true, true, false]
+
+// ─────────────────────────────────────────────────────────────
+// COMBINED (convenience) - new
+// ─────────────────────────────────────────────────────────────
+
+// Get everything needed for app initialization
+const appAccess = await access.getAppAccess({
+  userId: "alice@example.com",
+  orgId: "100",
+  role: "coordinator",
+});
+// Returns: {
+//   featureFlags: { "new-chart-ui": true, ... },
+//   modules: ["customer:explore", "customer:projects", ...],
+//   // Optionally pre-fetch common resource permissions
+// }
+```
+
+---
+
+## How Apps Would Use It
+
+### customer-www (unified)
+
+**Before (current):**
+```javascript
+// server.js - one module check for entire app
+plugins: { hapiSenseiAuth: { target: { type: "module", id: "customer-www" } } }
+
+// handler - separate site permission check
+const hasSitePermission = await checkUserRolesOne(userId, "site", siteId, writingRoles);
+```
+
+**After (unified):**
+```javascript
+// server.js - still need auth, but no module check here
+plugins: { hapiSenseiAuth: { ... } }
+
+// navigation handler - get accessible modules
+const modules = await access.getAccessibleModules(context);
+// Returns ["customer:explore", "customer:projects"] based on AVP policies
+
+// action handler - check data access
+const canEdit = await access.canAccess({
+  principal: { type: "User", id: userId },
+  action: "Edit",
+  resource: { type: "Site", id: siteId },
+});
+```
+
+### admin-www (cleaner)
+
+**Before:**
+```javascript
+// Different modules per route
+plugins: { hapiSenseiAuth: { target: { type: "module", id: "dashboard-www" } } }
+plugins: { hapiSenseiAuth: { target: { type: "module", id: "user-www" } } }
+```
+
+**After:**
+```javascript
+// Same pattern, just uses cascade-features
+const canAccess = await access.canAccessModule("admin:dashboards", context);
+```
+
+---
+
+## Migration: Authorization Service → AVP
+
+### What Lives Where
+
+| Data | Current Location | Future Location |
+|------|------------------|-----------------|
+| User → Role mappings | Authorization Service DB | AVP (template-linked policies) |
+| User → Org/Region/Site access | Authorization Service DB | AVP (template-linked policies) |
+| Module definitions | Code (linkList.json) | AVP (Module entities) |
+| Module → Role rules | Authorization Service | AVP (static policies) |
+| Org → Module purchases | ? | AVP (template-linked policies) |
+
+### The Authorization Service Eventually Goes Away
+
+```
+Phase 1: cascade-features calls Auth Service (current)
+Phase 2: cascade-features calls AVP in parallel, compares results
+Phase 3: cascade-features calls AVP primary, Auth Service fallback
+Phase 4: cascade-features calls AVP only, deprecate Auth Service
+```
+
+---
+
+## Summary: One System
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                     cascade-features                         │
+│                  (renamed: cascade-access?)                  │
+├─────────────────────────────────────────────────────────────┤
+│                                                              │
+│   ┌─────────────┐              ┌─────────────┐              │
+│   │  ConfigCat  │              │     AVP     │              │
+│   │             │              │             │              │
+│   │  • Rollouts │              │  • Modules  │              │
+│   │  • A/B test │              │  • Data     │              │
+│   │  • Kills    │              │  • Roles    │              │
+│   └─────────────┘              └─────────────┘              │
+│                                                              │
+│   getFeatureFlags()            canAccessModule()            │
+│                                canAccess()                  │
+│                                getAccessibleModules()       │
+│                                                              │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+              ┌───────────────────────────────┐
+              │     All Apps Use Same SDK     │
+              │                               │
+              │  • admin-www                  │
+              │  • customer-www               │
+              │  • explore-www                │
+              │  • Any new app                │
+              └───────────────────────────────┘
+```
+
+**Benefits:**
+- One SDK, one pattern, one mental model
+- ConfigCat for temporary flags, AVP for permanent authorization
+- Granular modules everywhere (not just admin-www)
+- Eventually deprecate Authorization Service
+- Apps don't need to know about AVP vs ConfigCat - just call cascade-features
