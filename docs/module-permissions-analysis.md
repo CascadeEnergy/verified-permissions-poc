@@ -392,3 +392,300 @@ Both must pass for the user to view the dashboard for that site.
 | Role hierarchy (globalAdmin > admin > ...) | User attributes + policy conditions |
 | Module target type | Module entity type |
 | Permission provider + cache | AVP handles caching internally |
+
+---
+
+# Proposal: Unified Feature & Module Access
+
+## Current State: Three Different Systems
+
+| System | Used By | How It Works | Managed Where |
+|--------|---------|--------------|---------------|
+| **Module Permissions** | admin-www, customer-www | Authorization service checks `module:{id}` | Permission service DB |
+| **Navigation Tables** | explore-www | `Navigation` + `CompanyNavigation` DB tables | MySQL/sensei-core |
+| **Feature Flags** | All apps | ConfigCat via `@sensei/cascade-features-sdk` | ConfigCat dashboard |
+
+**Problems:**
+1. Inconsistent patterns across apps
+2. Module permissions require DB changes to add new modules
+3. Navigation tables are legacy and hard to maintain
+4. No clear separation between "feature availability" and "user authorization"
+5. Three places to manage access control
+
+---
+
+## Proposed Model: Separate Concerns
+
+### The Three Questions
+
+| Question | Concern | Managed By | Check Frequency |
+|----------|---------|------------|-----------------|
+| **"Is this feature enabled?"** | Feature rollout | ConfigCat | App load |
+| **"Can this user access this feature?"** | Feature authorization | AVP (Cedar) | App load / nav |
+| **"Can this user access this resource?"** | Data authorization | AVP (Cedar) | Every action |
+
+### Why Separate?
+
+**Feature Flags (ConfigCat)** answer: "Should this feature exist in the app right now?"
+- Gradual rollouts (10% of users)
+- A/B testing
+- Kill switches
+- Environment-specific (staging vs prod)
+- Temporary - flags get removed when rollout complete
+
+**Feature Authorization (AVP)** answers: "Is this user allowed to use this feature?"
+- Permanent business rules
+- Role-based (admins can access Permission Explorer)
+- Org-based (Org X has purchased the EIS module)
+- Doesn't change frequently
+
+**Data Authorization (AVP)** answers: "Can this user access this specific resource?"
+- Site/Region/Org hierarchy
+- Fine-grained (user X can edit Site Y)
+- Per-request checks
+
+---
+
+## Proposed Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                         Application                              │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  1. On App Load:                                                │
+│     ┌──────────────┐     ┌──────────────┐                       │
+│     │  ConfigCat   │     │     AVP      │                       │
+│     │  (Features)  │     │  (Modules)   │                       │
+│     └──────┬───────┘     └──────┬───────┘                       │
+│            │                    │                                │
+│            ▼                    ▼                                │
+│     "Is EIS enabled?"    "Can user access EIS?"                 │
+│            │                    │                                │
+│            └────────┬───────────┘                                │
+│                     ▼                                            │
+│            Show/Hide nav item                                    │
+│                                                                  │
+│  2. On Each Action:                                             │
+│     ┌──────────────┐                                            │
+│     │     AVP      │                                            │
+│     │   (Data)     │                                            │
+│     └──────┬───────┘                                            │
+│            │                                                     │
+│            ▼                                                     │
+│     "Can user edit Site X?"                                     │
+│            │                                                     │
+│            ▼                                                     │
+│     Allow/Deny action                                           │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Implementation: Module Authorization in AVP
+
+### Schema Addition
+
+```json
+{
+  "entityTypes": {
+    "Module": {
+      "shape": {
+        "attributes": {
+          "name": { "type": "String", "required": false },
+          "category": { "type": "String", "required": false }
+        }
+      }
+    }
+  },
+  "actions": {
+    "AccessModule": {
+      "appliesTo": {
+        "principalTypes": ["User"],
+        "resourceTypes": ["Module"]
+      }
+    }
+  }
+}
+```
+
+### Module Entities (seeded once)
+
+```
+Module::"user-www"
+Module::"dashboard-www"
+Module::"eis-www"
+Module::"permission-www"
+... (one per module)
+```
+
+### Policy Templates
+
+**Role-based module access:**
+```cedar
+// Template: role-module-access.cedar
+// Grant a role access to a module
+permit(
+    principal,
+    action == Gazebo::Action::"AccessModule",
+    resource == ?resource
+) when {
+    principal has role && principal.role in ?roles
+};
+```
+
+**Org-based module access (purchased features):**
+```cedar
+// Template: org-module-access.cedar
+// Grant an org access to a module (e.g., they purchased EIS)
+permit(
+    principal,
+    action == Gazebo::Action::"AccessModule",
+    resource == ?resource
+) when {
+    principal has orgId && principal.orgId == ?orgId
+};
+```
+
+**User-specific module access:**
+```cedar
+// Template: user-module-access.cedar
+permit(
+    principal == ?principal,
+    action == Gazebo::Action::"AccessModule",
+    resource == ?resource
+);
+```
+
+### Example Policy Instantiations
+
+```
+# Admins can access Permission Explorer
+Template: role-module-access
+?resource = Module::"permission-www"
+?roles = ["globalAdmin", "administrator"]
+
+# Energy Trust has purchased EIS
+Template: org-module-access
+?resource = Module::"eis-www"
+?orgId = "100"
+
+# Alice has special access to Measurement Data
+Template: user-module-access
+?principal = User::"alice@example.com"
+?resource = Module::"measurement-data-www"
+```
+
+---
+
+## Migration Path
+
+### Phase 1: Keep Existing, Add AVP for Data
+
+```
+Feature Flags  → ConfigCat (no change)
+Module Access  → Authorization Service (no change)
+Data Access    → AVP (new)
+```
+
+### Phase 2: Add Module Entities to AVP
+
+```
+Feature Flags  → ConfigCat (no change)
+Module Access  → AVP + Authorization Service (parallel run)
+Data Access    → AVP (no change)
+```
+
+### Phase 3: Migrate Module Access to AVP
+
+```
+Feature Flags  → ConfigCat (no change)
+Module Access  → AVP (primary)
+Data Access    → AVP (no change)
+```
+
+### Phase 4: Deprecate Authorization Service
+
+```
+Feature Flags  → ConfigCat
+Module Access  → AVP
+Data Access    → AVP
+```
+
+---
+
+## Unified SDK Proposal
+
+Create a unified SDK that abstracts both systems:
+
+```typescript
+// @sensei/access-sdk
+
+import { createAccessClient } from "@sensei/access-sdk";
+
+const access = await createAccessClient({
+  avpPolicyStoreId: "ps-xxx",
+  configCatApiKey: "/ConfigCat/API_KEY",
+  environment: "production",
+});
+
+// Check if feature is enabled AND user can access it
+const canAccessEIS = await access.canAccessFeature("eis-www", {
+  userId: "alice@example.com",
+  orgId: "100",
+  role: "coordinator",
+});
+// Returns: { enabled: true, authorized: true, allowed: true }
+// enabled = ConfigCat says feature is on
+// authorized = AVP says user can access module
+// allowed = enabled && authorized
+
+// Check data access (AVP only)
+const canEditSite = await access.canAccess({
+  principal: { type: "User", id: "alice@example.com" },
+  action: "Edit",
+  resource: { type: "Site", id: "portland-manufacturing" },
+});
+// Returns: boolean
+
+// Get all accessible modules for nav rendering
+const modules = await access.getAccessibleModules({
+  userId: "alice@example.com",
+  orgId: "100",
+  role: "coordinator",
+});
+// Returns: [
+//   { id: "dashboard-www", enabled: true, authorized: true },
+//   { id: "eis-www", enabled: true, authorized: true },
+//   { id: "permission-www", enabled: true, authorized: false },
+// ]
+```
+
+---
+
+## Benefits of This Approach
+
+| Benefit | Description |
+|---------|-------------|
+| **Clear separation** | Feature rollout (ConfigCat) vs authorization (AVP) |
+| **Consistent patterns** | All apps use same SDK |
+| **Self-service** | PMs manage flags in ConfigCat, admins manage auth in AVP |
+| **Auditable** | AVP provides audit trail for authorization decisions |
+| **Flexible** | Role-based, org-based, or user-based module access |
+| **Gradual migration** | Can run in parallel with existing systems |
+
+---
+
+## Decision Matrix: ConfigCat vs AVP
+
+| Use Case | Use ConfigCat | Use AVP |
+|----------|---------------|---------|
+| "We're rolling out a new feature to 10% of users" | ✅ | |
+| "Only admins should see Permission Explorer" | | ✅ |
+| "Org X has purchased the EIS module" | | ✅ |
+| "Kill switch for broken feature" | ✅ | |
+| "A/B test new dashboard layout" | ✅ | |
+| "User X should not access Site Y" | | ✅ |
+| "This feature is in beta for staging only" | ✅ | |
+| "Coordinators can edit, Viewers can only read" | | ✅ |
