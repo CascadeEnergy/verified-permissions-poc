@@ -999,3 +999,221 @@ Phase 4: cascade-features calls AVP only, deprecate Auth Service
 - Granular modules everywhere (not just admin-www)
 - Eventually deprecate Authorization Service
 - Apps don't need to know about AVP vs ConfigCat - just call cascade-features
+
+---
+
+# Background: Authorization Systems & Industry Patterns
+
+## What is Zanzibar?
+
+**Google Zanzibar** is Google's internal authorization system, described in a [2019 paper](https://research.google/pubs/pub48190/). It powers authorization for Google Drive, YouTube, Google Cloud IAM, Photos, Calendar, etc.
+
+**Key concept: Relationship-Based Access Control (ReBAC)**
+
+Instead of roles/attributes, Zanzibar stores **relationships**:
+
+```
+# Relationships (stored as tuples)
+doc:readme#owner@user:alice           # Alice owns readme
+doc:readme#parent@folder:engineering  # readme is in engineering folder
+folder:engineering#viewer@group:eng   # eng group can view engineering folder
+group:eng#member@user:bob             # Bob is in eng group
+
+# Query: Can Bob view readme?
+# Zanzibar traverses: bob → eng group → engineering folder → readme
+# Answer: Yes (inherited through folder)
+```
+
+**Open-source Zanzibar implementations:**
+- **SpiceDB** (Authzed) - most popular
+- **OpenFGA** (Auth0/Okta) - also very popular
+- **Permify** - newer
+- **Ory Keto** - part of Ory ecosystem
+
+## What is Polar?
+
+**Polar** is the policy language used by **Oso**. Like Cedar, but different syntax:
+
+```polar
+# Polar (Oso)
+allow(user, "read", doc) if
+    user.role = "admin" or
+    doc.owner = user;
+```
+
+```cedar
+# Cedar (AVP)
+permit(principal, action == "read", resource)
+when {
+    principal.role == "admin" ||
+    resource.owner == principal
+};
+```
+
+Oso started as an embedded library, now has **Oso Cloud** (managed service).
+
+## Authorization Systems Comparison
+
+| System | Model | Language | Deployment | Best For |
+|--------|-------|----------|------------|----------|
+| **AWS Verified Permissions** | ABAC + ReBAC | Cedar | Managed (AWS) | AWS shops |
+| **SpiceDB / Authzed** | ReBAC (Zanzibar) | Schema | Self-host or Cloud | Complex hierarchies |
+| **OpenFGA (Auth0)** | ReBAC (Zanzibar) | DSL | Self-host or Cloud | Auth0 users |
+| **Oso Cloud** | ABAC | Polar | Managed | Ruby/Python shops |
+| **OPA** | ABAC | Rego | Self-host (sidecar) | Kubernetes |
+| **Cerbos** | ABAC | YAML | Self-host | Simple policies |
+| **Permit.io** | ABAC + ReBAC | UI + Code | Managed | Quick start |
+
+## Why AVP for Cascade?
+
+| Factor | AVP Advantage |
+|--------|---------------|
+| Already on AWS | Native integration, same billing, IAM roles |
+| No infra to manage | Serverless, AWS handles scaling |
+| Cedar is excellent | Well-designed, readable, formally verified |
+| CloudTrail integration | Audit logging built-in |
+| AWS support | Enterprise support if needed |
+
+**When you'd consider alternatives:**
+
+| Scenario | Consider Instead |
+|----------|------------------|
+| Complex nested hierarchies (Google Drive-like) | SpiceDB/OpenFGA |
+| Multi-cloud requirement | SpiceDB, OpenFGA, OPA |
+| Already using Auth0 | OpenFGA |
+| Need sub-millisecond latency | OPA sidecar |
+
+**Recommendation:** AVP is the right choice. Our hierarchy (Org→Region→Site) isn't deep enough to need Zanzibar's graph traversal. Cedar handles it well.
+
+---
+
+# Feature Flags vs Authorization: Same Library, Separate Concerns
+
+## The Industry Reality: Most Keep Them Separate
+
+| Feature Flags | Authorization | Combined? |
+|---------------|---------------|-----------|
+| LaunchDarkly | - | Flags only (targeting ≠ authz) |
+| ConfigCat | - | Flags only |
+| Split | - | Flags only |
+| - | AVP | Authz only |
+| - | SpiceDB | Authz only |
+| - | Auth0 FGA | Authz only |
+| **Permit.io** | **Permit.io** | **Both** |
+
+## LaunchDarkly Misconception
+
+LaunchDarkly does **feature flags with sophisticated targeting**, not true authorization:
+
+```typescript
+// LaunchDarkly - flag evaluation with user context
+const showNewUI = await ldClient.variation("new-ui-feature", {
+  key: "user-123",
+  custom: { plan: "enterprise", role: "admin" }
+}, false);
+```
+
+**What LaunchDarkly CAN do:**
+- "Show this feature to enterprise customers"
+- "Roll out to 10% of users"
+- "Enable for users with role=admin"
+
+**What LaunchDarkly CANNOT do:**
+- "Can Alice edit Document X?" (resource-level)
+- "Can Bob access Site Y?" (relationship-based)
+
+LaunchDarkly's "entitlements" are **flag targeting by attributes**, not RBAC.
+
+## Permit.io: The One That Combines Both
+
+Permit.io explicitly combines feature flags + authorization:
+
+```typescript
+// Permit.io SDK
+const permit = new Permit({ token: "..." });
+
+// Authorization check
+const canEdit = await permit.check("alice", "edit", "document:123");
+
+// Feature flag check
+const showBeta = await permit.featureFlags.isEnabled("beta-feature", user);
+```
+
+Built on OPA + SpiceDB under the hood.
+
+## Our Approach: Same Library, Separate APIs
+
+**Keep them separate but co-located** in cascade-features:
+
+```typescript
+import { createAccessClient } from "@sensei/cascade-features";
+
+const access = await createAccessClient({
+  configCat: { apiKeyParameterName: "/ConfigCat/API_KEY" },
+  avp: { policyStoreId: "ps-xxxx" },
+});
+
+// ─────────────────────────────────────────────────────────────
+// FEATURE FLAGS (ConfigCat) - separate namespace
+// ─────────────────────────────────────────────────────────────
+const flags = access.flags;
+
+const isEnabled = await flags.isEnabled("new-dashboard", context);
+const allFlags = await flags.getAll(context);
+
+// ─────────────────────────────────────────────────────────────
+// AUTHORIZATION (AVP) - separate namespace
+// ─────────────────────────────────────────────────────────────
+const auth = access.auth;
+
+const canAccess = await auth.canAccessModule("customer:projects", context);
+const modules = await auth.getAccessibleModules(context);
+const canEdit = await auth.canAccess({
+  action: "Edit",
+  resource: { type: "Site", id: "portland" }
+}, context);
+
+// ─────────────────────────────────────────────────────────────
+// NO COMBINED CALL - keep concerns separate
+// ─────────────────────────────────────────────────────────────
+// App logic decides how to combine:
+if (flags.isEnabled("new-projects-ui") && auth.canAccessModule("customer:projects")) {
+  showNewProjectsUI();
+}
+```
+
+## Why Separate Namespaces?
+
+| Reason | Explanation |
+|--------|-------------|
+| **Different lifecycles** | Flags are temporary, auth is permanent |
+| **Different owners** | PMs manage flags, security manages auth |
+| **Different mental models** | "Is it on?" vs "Is it allowed?" |
+| **Clearer code** | Explicit about what you're checking |
+| **Easier testing** | Mock flags and auth independently |
+
+## Why Same Library?
+
+| Reason | Explanation |
+|--------|-------------|
+| **One dependency** | `npm install @sensei/cascade-features` |
+| **Shared context** | Same userId, orgId, role structure |
+| **Consistent patterns** | Same error handling, caching approach |
+| **Single init** | One client creation, one config |
+| **Discoverability** | Developers find both in one place |
+
+## The Distinction Matters
+
+```typescript
+// WRONG mental model: "combined access check"
+const canUse = await access.checkFeatureAccess("projects"); // Conflates two concerns
+
+// RIGHT mental model: "two separate questions"
+const featureEnabled = await access.flags.isEnabled("projects-v2");  // Is it rolled out?
+const userAuthorized = await access.auth.canAccessModule("projects"); // Is user allowed?
+const canUse = featureEnabled && userAuthorized; // App combines them
+```
+
+This keeps the **why** clear:
+- Feature disabled? → Talk to PM about rollout
+- User unauthorized? → Talk to admin about permissions
