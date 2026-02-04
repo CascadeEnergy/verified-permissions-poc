@@ -170,7 +170,7 @@ export class ProductionHierarchyService implements IHierarchyService {
     private siteServiceUrl: string
   ) {}
 
-  async getSiteHierarchy(siteId: string): Promise<HierarchyChain> {
+  async getSiteHierarchy(_siteId: string): Promise<HierarchyChain> {
     // In production, this would:
     // 1. GET ${siteServiceUrl}/site/${siteId}
     // 2. Parse companyId from response
@@ -184,13 +184,13 @@ export class ProductionHierarchyService implements IHierarchyService {
   async getSite(siteId: string): Promise<Site | null> {
     const response = await fetch(`${this.siteServiceUrl}/site/${siteId}`);
     if (!response.ok) return null;
-    return response.json();
+    return response.json() as Promise<Site>;
   }
 
   async getCompany(companyId: string): Promise<Company | null> {
     const response = await fetch(`${this.companyServiceUrl}/company/${companyId}`);
     if (!response.ok) return null;
-    return response.json();
+    return response.json() as Promise<Company>;
   }
 }
 

@@ -140,7 +140,7 @@ export function getEntityDisplayName(type: string, id: string): string {
 
 export function listAllSites(): Array<{ id: string; name: string; hierarchy: string }> {
   return Object.values(MOCK_SITES).map(site => {
-    const { type, id } = parseCompanyId(site.companyId);
+    const { id } = parseCompanyId(site.companyId);
     const company = MOCK_COMPANIES[id];
 
     let hierarchy: string;

@@ -4,6 +4,9 @@
   "scripts": {
     "build": "tsc",
     "watch": "tsc -w",
+    "lint": "eslint . --ext .ts",
+    "lint:fix": "eslint . --ext .ts --fix",
+    "typecheck": "tsc --noEmit",
     "cdk": "cdk",
     "deploy": "cdk deploy",
     "destroy": "cdk destroy",
