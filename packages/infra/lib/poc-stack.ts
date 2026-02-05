@@ -54,64 +54,54 @@ export class PocStack extends cdk.Stack {
     // Create policy templates for scoped roles
     // Templates define permission LEVELS - they can be applied to any resource (Site, Region, Organization, etc.)
     // Role hierarchy (lowest to highest): Viewer < Contributor < Champion < Facilitator < Coordinator < Administrator
+    // Templates are loaded from .cedar files in /authorization/templates/
+
+    const templatesDir = path.join(__dirname, "../../../authorization/templates");
+
+    // Helper to load template from .cedar file (strips comments for the statement)
+    const loadTemplate = (filename: string): string => {
+      const content = fs.readFileSync(path.join(templatesDir, filename), "utf-8");
+      // Remove comment lines (lines starting with //) for the statement
+      return content
+        .split("\n")
+        .filter((line) => !line.trim().startsWith("//"))
+        .join("\n")
+        .trim();
+    };
 
     const viewerTemplate = new verifiedpermissions.CfnPolicyTemplate(this, "ViewerTemplate", {
       policyStoreId: policyStore.attrPolicyStoreId,
-      statement: `permit(
-  principal == ?principal,
-  action == Gazebo::Action::"View",
-  resource in ?resource
-);`,
+      statement: loadTemplate("viewer.cedar"),
       description: "Viewer (Evaluator, Program Sponsor): View and export data only",
     });
 
     const contributorTemplate = new verifiedpermissions.CfnPolicyTemplate(this, "ContributorTemplate", {
       policyStoreId: policyStore.attrPolicyStoreId,
-      statement: `permit(
-  principal == ?principal,
-  action in [Gazebo::Action::"View", Gazebo::Action::"Edit"],
-  resource in ?resource
-);`,
+      statement: loadTemplate("contributor.cedar"),
       description: "Contributor (Energy Team Member): View + add data, edit projects/resources/markers",
     });
 
     const championTemplate = new verifiedpermissions.CfnPolicyTemplate(this, "ChampionTemplate", {
       policyStoreId: policyStore.attrPolicyStoreId,
-      statement: `permit(
-  principal == ?principal,
-  action in [Gazebo::Action::"View", Gazebo::Action::"Edit", Gazebo::Action::"Create"],
-  resource in ?resource
-);`,
+      statement: loadTemplate("champion.cedar"),
       description: "Champion (Energy Champion): Contributor + edit models, manage savings claims",
     });
 
     const facilitatorTemplate = new verifiedpermissions.CfnPolicyTemplate(this, "FacilitatorTemplate", {
       policyStoreId: policyStore.attrPolicyStoreId,
-      statement: `permit(
-  principal == ?principal,
-  action in [Gazebo::Action::"View", Gazebo::Action::"Edit", Gazebo::Action::"Create"],
-  resource in ?resource
-);`,
+      statement: loadTemplate("facilitator.cedar"),
       description: "Facilitator (Technical Lead, Coach): Champion + import projects, overwrite data, share views",
     });
 
     const coordinatorTemplate = new verifiedpermissions.CfnPolicyTemplate(this, "CoordinatorTemplate", {
       policyStoreId: policyStore.attrPolicyStoreId,
-      statement: `permit(
-  principal == ?principal,
-  action in [Gazebo::Action::"View", Gazebo::Action::"Edit", Gazebo::Action::"Create", Gazebo::Action::"Delete"],
-  resource in ?resource
-);`,
+      statement: loadTemplate("coordinator.cedar"),
       description: "Coordinator (Lead Coach, Program Specialist): Facilitator + manage users, sites, data streams, groups",
     });
 
     const administratorTemplate = new verifiedpermissions.CfnPolicyTemplate(this, "AdministratorTemplate", {
       policyStoreId: policyStore.attrPolicyStoreId,
-      statement: `permit(
-  principal == ?principal,
-  action,
-  resource in ?resource
-);`,
+      statement: loadTemplate("administrator.cedar"),
       description: "Administrator (Cascade only): Full admin access to all features",
     });
 
