@@ -82,7 +82,8 @@ export class PipelineStack extends cdk.Stack {
       ],
       commands: [
         "cd packages/frontend",
-        // Use npm install instead of npm ci to avoid rollup optional dependency issue
+        // Fix rollup optional dependency issue per https://github.com/npm/cli/issues/4828
+        "rm -rf node_modules package-lock.json",
         "npm install",
         "echo \"VITE_API_URL=$API_URL\" > .env.production",
         "npm run build",
