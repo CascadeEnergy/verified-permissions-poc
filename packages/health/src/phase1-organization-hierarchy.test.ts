@@ -96,6 +96,10 @@
  *    ```
  */
 
+import { describe, it } from "node:test";
+import assert from "node:assert";
+import { checkAuth } from "./api.js";
+
 describe("Phase 1: Organization Hierarchy Authorization", () => {
   /**
    * ════════════════════════════════════════════════════════════════════════════
@@ -119,57 +123,53 @@ describe("Phase 1: Organization Hierarchy Authorization", () => {
    * ```
    */
   describe("Global Admin - Full Access", () => {
-    it("can View any Site", () => {
-      cy.checkAuth({
+    it("can View any Site", async () => {
+      const response = await checkAuth({
         userId: "admin-1",
         userRoles: ["globalAdmin"],
         action: "View",
         resourceType: "Site",
         resourceId: "portland-manufacturing",
-      }).then((response) => {
-        expect(response.status).to.eq(200);
-        expect(response.body.allowed).to.eq(true);
       });
+      assert.strictEqual(response.status, 200);
+      assert.strictEqual(response.body.allowed, true);
     });
 
-    it("can Delete any Site", () => {
-      cy.checkAuth({
+    it("can Delete any Site", async () => {
+      const response = await checkAuth({
         userId: "admin-1",
         userRoles: ["globalAdmin"],
         action: "Delete",
         resourceType: "Site",
         resourceId: "portland-manufacturing",
-      }).then((response) => {
-        expect(response.status).to.eq(200);
-        expect(response.body.allowed).to.eq(true);
       });
+      assert.strictEqual(response.status, 200);
+      assert.strictEqual(response.body.allowed, true);
     });
 
-    it("can perform Admin actions on Organizations", () => {
-      cy.checkAuth({
+    it("can perform Admin actions on Organizations", async () => {
+      const response = await checkAuth({
         userId: "admin-1",
         userRoles: ["globalAdmin"],
         action: "Admin",
         resourceType: "Organization",
         resourceId: "1",
-      }).then((response) => {
-        expect(response.status).to.eq(200);
-        expect(response.body.allowed).to.eq(true);
       });
+      assert.strictEqual(response.status, 200);
+      assert.strictEqual(response.body.allowed, true);
     });
 
-    it("can access resources in ANY organization", () => {
+    it("can access resources in ANY organization", async () => {
       // Goodwill is a completely separate organization
-      cy.checkAuth({
+      const response = await checkAuth({
         userId: "admin-1",
         userRoles: ["globalAdmin"],
         action: "Edit",
         resourceType: "Site",
         resourceId: "goodwill-happy-valley",
-      }).then((response) => {
-        expect(response.status).to.eq(200);
-        expect(response.body.allowed).to.eq(true);
       });
+      assert.strictEqual(response.status, 200);
+      assert.strictEqual(response.body.allowed, true);
     });
   });
 
@@ -190,57 +190,53 @@ describe("Phase 1: Organization Hierarchy Authorization", () => {
    * This is AWS Verified Permissions' default-deny behavior.
    */
   describe("Roles Without Assignment - Denied", () => {
-    it("administrator role has NO inherent access", () => {
+    it("administrator role has NO inherent access", async () => {
       // Having "administrator" role doesn't mean anything without an assignment
-      cy.checkAuth({
+      const response = await checkAuth({
         userId: "admin-2",
         userRoles: ["administrator"],
         action: "View",
         resourceType: "Site",
         resourceId: "portland-manufacturing",
-      }).then((response) => {
-        expect(response.status).to.eq(200);
-        expect(response.body.allowed).to.eq(false);
       });
+      assert.strictEqual(response.status, 200);
+      assert.strictEqual(response.body.allowed, false);
     });
 
-    it("coordinator role has NO inherent access", () => {
-      cy.checkAuth({
+    it("coordinator role has NO inherent access", async () => {
+      const response = await checkAuth({
         userId: "coord-1",
         userRoles: ["coordinator"],
         action: "View",
         resourceType: "Site",
         resourceId: "portland-manufacturing",
-      }).then((response) => {
-        expect(response.status).to.eq(200);
-        expect(response.body.allowed).to.eq(false);
       });
+      assert.strictEqual(response.status, 200);
+      assert.strictEqual(response.body.allowed, false);
     });
 
-    it("facilitator role has NO inherent access", () => {
-      cy.checkAuth({
+    it("facilitator role has NO inherent access", async () => {
+      const response = await checkAuth({
         userId: "facilitator-1",
         userRoles: ["facilitator"],
         action: "View",
         resourceType: "Site",
         resourceId: "portland-manufacturing",
-      }).then((response) => {
-        expect(response.status).to.eq(200);
-        expect(response.body.allowed).to.eq(false);
       });
+      assert.strictEqual(response.status, 200);
+      assert.strictEqual(response.body.allowed, false);
     });
 
-    it("viewer role has NO inherent access", () => {
-      cy.checkAuth({
+    it("viewer role has NO inherent access", async () => {
+      const response = await checkAuth({
         userId: "viewer-1",
         userRoles: ["viewer"],
         action: "View",
         resourceType: "Site",
         resourceId: "portland-manufacturing",
-      }).then((response) => {
-        expect(response.status).to.eq(200);
-        expect(response.body.allowed).to.eq(false);
       });
+      assert.strictEqual(response.status, 200);
+      assert.strictEqual(response.body.allowed, false);
     });
   });
 
@@ -269,8 +265,8 @@ describe("Phase 1: Organization Hierarchy Authorization", () => {
    * - Requires the resource to have a `createdBy` attribute
    */
   describe("Creator Privilege - Own Resources", () => {
-    it("user can View their own Project (even without any roles)", () => {
-      cy.checkAuth({
+    it("user can View their own Project (even without any roles)", async () => {
+      const response = await checkAuth({
         userId: "user-1",
         userRoles: [], // No roles at all!
         action: "View",
@@ -278,14 +274,13 @@ describe("Phase 1: Organization Hierarchy Authorization", () => {
         resourceId: "proj-1",
         resourceCreatedBy: "user-1", // This user created the project
         resourceParentSite: "portland-manufacturing",
-      }).then((response) => {
-        expect(response.status).to.eq(200);
-        expect(response.body.allowed).to.eq(true);
       });
+      assert.strictEqual(response.status, 200);
+      assert.strictEqual(response.body.allowed, true);
     });
 
-    it("user can Edit their own Project", () => {
-      cy.checkAuth({
+    it("user can Edit their own Project", async () => {
+      const response = await checkAuth({
         userId: "user-1",
         userRoles: [],
         action: "Edit",
@@ -293,14 +288,13 @@ describe("Phase 1: Organization Hierarchy Authorization", () => {
         resourceId: "proj-1",
         resourceCreatedBy: "user-1",
         resourceParentSite: "portland-manufacturing",
-      }).then((response) => {
-        expect(response.status).to.eq(200);
-        expect(response.body.allowed).to.eq(true);
       });
+      assert.strictEqual(response.status, 200);
+      assert.strictEqual(response.body.allowed, true);
     });
 
-    it("user CANNOT Edit someone else's Project", () => {
-      cy.checkAuth({
+    it("user CANNOT Edit someone else's Project", async () => {
+      const response = await checkAuth({
         userId: "user-1",
         userRoles: [],
         action: "Edit",
@@ -308,14 +302,13 @@ describe("Phase 1: Organization Hierarchy Authorization", () => {
         resourceId: "proj-2",
         resourceCreatedBy: "user-2", // Different creator!
         resourceParentSite: "portland-manufacturing",
-      }).then((response) => {
-        expect(response.status).to.eq(200);
-        expect(response.body.allowed).to.eq(false);
       });
+      assert.strictEqual(response.status, 200);
+      assert.strictEqual(response.body.allowed, false);
     });
 
-    it("creator privilege does NOT grant Delete access", () => {
-      cy.checkAuth({
+    it("creator privilege does NOT grant Delete access", async () => {
+      const response = await checkAuth({
         userId: "user-1",
         userRoles: [],
         action: "Delete",
@@ -323,10 +316,9 @@ describe("Phase 1: Organization Hierarchy Authorization", () => {
         resourceId: "proj-1",
         resourceCreatedBy: "user-1",
         resourceParentSite: "portland-manufacturing",
-      }).then((response) => {
-        expect(response.status).to.eq(200);
-        expect(response.body.allowed).to.eq(false);
       });
+      assert.strictEqual(response.status, 200);
+      assert.strictEqual(response.body.allowed, false);
     });
   });
 
@@ -344,31 +336,29 @@ describe("Phase 1: Organization Hierarchy Authorization", () => {
    * - Any action not explicitly permitted = DENIED
    */
   describe("Default Deny - No Matching Policy", () => {
-    it("user with no roles cannot View a Site", () => {
-      cy.checkAuth({
+    it("user with no roles cannot View a Site", async () => {
+      const response = await checkAuth({
         userId: "random-user",
         userRoles: [],
         action: "View",
         resourceType: "Site",
         resourceId: "portland-manufacturing",
-      }).then((response) => {
-        expect(response.status).to.eq(200);
-        expect(response.body.allowed).to.eq(false);
       });
+      assert.strictEqual(response.status, 200);
+      assert.strictEqual(response.body.allowed, false);
     });
 
-    it("user with no roles cannot Edit a Project they didn't create", () => {
-      cy.checkAuth({
+    it("user with no roles cannot Edit a Project they didn't create", async () => {
+      const response = await checkAuth({
         userId: "random-user",
         userRoles: [],
         action: "Edit",
         resourceType: "Project",
         resourceId: "proj-1",
         resourceParentSite: "portland-manufacturing",
-      }).then((response) => {
-        expect(response.status).to.eq(200);
-        expect(response.body.allowed).to.eq(false);
       });
+      assert.strictEqual(response.status, 200);
+      assert.strictEqual(response.body.allowed, false);
     });
   });
 
@@ -423,72 +413,67 @@ describe("Phase 1: Organization Hierarchy Authorization", () => {
      * ```
      */
 
-    it("Alice can View her assigned Site", () => {
-      cy.checkAuth({
+    it("Alice can View her assigned Site", async () => {
+      const response = await checkAuth({
         userId: "alice@example.com",
         userRoles: [],
         action: "View",
         resourceType: "Site",
         resourceId: "portland-manufacturing",
-      }).then((response) => {
-        expect(response.status).to.eq(200);
-        expect(response.body.allowed).to.eq(true);
       });
+      assert.strictEqual(response.status, 200);
+      assert.strictEqual(response.body.allowed, true);
     });
 
-    it("Alice can Edit Projects in her Site (coordinator has Edit)", () => {
-      cy.checkAuth({
+    it("Alice can Edit Projects in her Site (coordinator has Edit)", async () => {
+      const response = await checkAuth({
         userId: "alice@example.com",
         userRoles: [],
         action: "Edit",
         resourceType: "Project",
         resourceId: "hvac-project",
         resourceParentSite: "portland-manufacturing",
-      }).then((response) => {
-        expect(response.status).to.eq(200);
-        expect(response.body.allowed).to.eq(true);
       });
+      assert.strictEqual(response.status, 200);
+      assert.strictEqual(response.body.allowed, true);
     });
 
-    it("Alice can Create Projects in her Site (coordinator has Create)", () => {
-      cy.checkAuth({
+    it("Alice can Create Projects in her Site (coordinator has Create)", async () => {
+      const response = await checkAuth({
         userId: "alice@example.com",
         userRoles: [],
         action: "Create",
         resourceType: "Project",
         resourceId: "new-project",
         resourceParentSite: "portland-manufacturing",
-      }).then((response) => {
-        expect(response.status).to.eq(200);
-        expect(response.body.allowed).to.eq(true);
       });
+      assert.strictEqual(response.status, 200);
+      assert.strictEqual(response.body.allowed, true);
     });
 
-    it("Alice CANNOT access seattle-hq (different Site, same Region)", () => {
+    it("Alice CANNOT access seattle-hq (different Site, same Region)", async () => {
       // Site-level assignment does NOT cascade to sibling sites
-      cy.checkAuth({
+      const response = await checkAuth({
         userId: "alice@example.com",
         userRoles: [],
         action: "View",
         resourceType: "Site",
         resourceId: "seattle-hq",
-      }).then((response) => {
-        expect(response.status).to.eq(200);
-        expect(response.body.allowed).to.eq(false);
       });
+      assert.strictEqual(response.status, 200);
+      assert.strictEqual(response.body.allowed, false);
     });
 
-    it("Alice CANNOT access boston-office (different Region)", () => {
-      cy.checkAuth({
+    it("Alice CANNOT access boston-office (different Region)", async () => {
+      const response = await checkAuth({
         userId: "alice@example.com",
         userRoles: [],
         action: "View",
         resourceType: "Site",
         resourceId: "boston-office",
-      }).then((response) => {
-        expect(response.status).to.eq(200);
-        expect(response.body.allowed).to.eq(false);
       });
+      assert.strictEqual(response.status, 200);
+      assert.strictEqual(response.body.allowed, false);
     });
   });
 
@@ -520,85 +505,79 @@ describe("Phase 1: Organization Hierarchy Authorization", () => {
      *       → Region::"10" matches! ✓
      */
 
-    it("Dan can View portland-manufacturing (Site in West Region)", () => {
-      cy.checkAuth({
+    it("Dan can View portland-manufacturing (Site in West Region)", async () => {
+      const response = await checkAuth({
         userId: "dan@cascade.com",
         userRoles: [],
         action: "View",
         resourceType: "Site",
         resourceId: "portland-manufacturing",
-      }).then((response) => {
-        expect(response.status).to.eq(200);
-        expect(response.body.allowed).to.eq(true);
       });
+      assert.strictEqual(response.status, 200);
+      assert.strictEqual(response.body.allowed, true);
     });
 
-    it("Dan can Edit seattle-hq (also in West Region)", () => {
-      cy.checkAuth({
+    it("Dan can Edit seattle-hq (also in West Region)", async () => {
+      const response = await checkAuth({
         userId: "dan@cascade.com",
         userRoles: [],
         action: "Edit",
         resourceType: "Site",
         resourceId: "seattle-hq",
-      }).then((response) => {
-        expect(response.status).to.eq(200);
-        expect(response.body.allowed).to.eq(true);
       });
+      assert.strictEqual(response.status, 200);
+      assert.strictEqual(response.body.allowed, true);
     });
 
-    it("Dan can Edit Projects in West Region sites", () => {
-      cy.checkAuth({
+    it("Dan can Edit Projects in West Region sites", async () => {
+      const response = await checkAuth({
         userId: "dan@cascade.com",
         userRoles: [],
         action: "Edit",
         resourceType: "Project",
         resourceId: "hvac-project",
         resourceParentSite: "portland-manufacturing",
-      }).then((response) => {
-        expect(response.status).to.eq(200);
-        expect(response.body.allowed).to.eq(true);
       });
+      assert.strictEqual(response.status, 200);
+      assert.strictEqual(response.body.allowed, true);
     });
 
-    it("Dan CANNOT access boston-office (in East Region)", () => {
+    it("Dan CANNOT access boston-office (in East Region)", async () => {
       // Region-level assignment does NOT cross to other regions
-      cy.checkAuth({
+      const response = await checkAuth({
         userId: "dan@cascade.com",
         userRoles: [],
         action: "View",
         resourceType: "Site",
         resourceId: "boston-office",
-      }).then((response) => {
-        expect(response.status).to.eq(200);
-        expect(response.body.allowed).to.eq(false);
       });
+      assert.strictEqual(response.status, 200);
+      assert.strictEqual(response.body.allowed, false);
     });
 
-    it("Dan CANNOT access goodwill-happy-valley (different Organization)", () => {
-      cy.checkAuth({
+    it("Dan CANNOT access goodwill-happy-valley (different Organization)", async () => {
+      const response = await checkAuth({
         userId: "dan@cascade.com",
         userRoles: [],
         action: "View",
         resourceType: "Site",
         resourceId: "goodwill-happy-valley",
-      }).then((response) => {
-        expect(response.status).to.eq(200);
-        expect(response.body.allowed).to.eq(false);
       });
+      assert.strictEqual(response.status, 200);
+      assert.strictEqual(response.body.allowed, false);
     });
 
-    it("Dan CANNOT Delete (contributor only has View + Edit)", () => {
+    it("Dan CANNOT Delete (contributor only has View + Edit)", async () => {
       // Contributor role doesn't include Delete permission
-      cy.checkAuth({
+      const response = await checkAuth({
         userId: "dan@cascade.com",
         userRoles: [],
         action: "Delete",
         resourceType: "Site",
         resourceId: "portland-manufacturing",
-      }).then((response) => {
-        expect(response.status).to.eq(200);
-        expect(response.body.allowed).to.eq(false);
       });
+      assert.strictEqual(response.status, 200);
+      assert.strictEqual(response.body.allowed, false);
     });
   });
 
@@ -631,73 +610,68 @@ describe("Phase 1: Organization Hierarchy Authorization", () => {
      *         → Organization::"1" matches! ✓
      */
 
-    it("Eve can View portland-manufacturing (West Region → Cascade)", () => {
-      cy.checkAuth({
+    it("Eve can View portland-manufacturing (West Region → Cascade)", async () => {
+      const response = await checkAuth({
         userId: "eve@cascade.com",
         userRoles: [],
         action: "View",
         resourceType: "Site",
         resourceId: "portland-manufacturing",
-      }).then((response) => {
-        expect(response.status).to.eq(200);
-        expect(response.body.allowed).to.eq(true);
       });
+      assert.strictEqual(response.status, 200);
+      assert.strictEqual(response.body.allowed, true);
     });
 
-    it("Eve can View boston-office (East Region → Cascade)", () => {
+    it("Eve can View boston-office (East Region → Cascade)", async () => {
       // Organization-level access spans ALL regions within that org
-      cy.checkAuth({
+      const response = await checkAuth({
         userId: "eve@cascade.com",
         userRoles: [],
         action: "View",
         resourceType: "Site",
         resourceId: "boston-office",
-      }).then((response) => {
-        expect(response.status).to.eq(200);
-        expect(response.body.allowed).to.eq(true);
       });
+      assert.strictEqual(response.status, 200);
+      assert.strictEqual(response.body.allowed, true);
     });
 
-    it("Eve can View Projects in any Cascade site", () => {
-      cy.checkAuth({
+    it("Eve can View Projects in any Cascade site", async () => {
+      const response = await checkAuth({
         userId: "eve@cascade.com",
         userRoles: [],
         action: "View",
         resourceType: "Project",
         resourceId: "east-coast-project",
         resourceParentSite: "boston-office",
-      }).then((response) => {
-        expect(response.status).to.eq(200);
-        expect(response.body.allowed).to.eq(true);
       });
+      assert.strictEqual(response.status, 200);
+      assert.strictEqual(response.body.allowed, true);
     });
 
-    it("Eve CANNOT Edit (viewer only has View permission)", () => {
+    it("Eve CANNOT Edit (viewer only has View permission)", async () => {
       // Viewer template only permits View action
-      cy.checkAuth({
+      const response = await checkAuth({
         userId: "eve@cascade.com",
         userRoles: [],
         action: "Edit",
         resourceType: "Site",
         resourceId: "portland-manufacturing",
-      }).then((response) => {
-        expect(response.status).to.eq(200);
-        expect(response.body.allowed).to.eq(false);
       });
+      assert.strictEqual(response.status, 200);
+      assert.strictEqual(response.body.allowed, false);
     });
 
-    it("Eve CANNOT access goodwill-happy-valley (different Organization)", () => {
+    it("Eve CANNOT access goodwill-happy-valley (different Organization)", async () => {
       // Organization boundary is absolute
-      cy.checkAuth({
+      const response = await checkAuth({
         userId: "eve@cascade.com",
         userRoles: [],
         action: "View",
         resourceType: "Site",
         resourceId: "goodwill-happy-valley",
-      }).then((response) => {
-        expect(response.status).to.eq(200);
-        expect(response.body.allowed).to.eq(false);
       });
+      assert.strictEqual(response.status, 200);
+      assert.strictEqual(response.body.allowed, false);
     });
   });
 
@@ -726,84 +700,77 @@ describe("Phase 1: Organization Hierarchy Authorization", () => {
     // These tests use globalAdmin with different simulated permission levels
     // to demonstrate what each level allows
 
-    it("Viewer can only View", () => {
+    it("Viewer can only View", async () => {
       // Testing against a user with viewer assignment
-      cy.checkAuth({
+      const viewResponse = await checkAuth({
         userId: "eve@cascade.com", // Has viewer on Cascade org
         userRoles: [],
         action: "View",
         resourceType: "Site",
         resourceId: "portland-manufacturing",
-      }).then((response) => {
-        expect(response.body.allowed).to.eq(true);
       });
+      assert.strictEqual(viewResponse.body.allowed, true);
 
-      cy.checkAuth({
+      const editResponse = await checkAuth({
         userId: "eve@cascade.com",
         userRoles: [],
         action: "Edit",
         resourceType: "Site",
         resourceId: "portland-manufacturing",
-      }).then((response) => {
-        expect(response.body.allowed).to.eq(false);
       });
+      assert.strictEqual(editResponse.body.allowed, false);
     });
 
-    it("Contributor can View and Edit", () => {
+    it("Contributor can View and Edit", async () => {
       // Testing against a user with contributor assignment
-      cy.checkAuth({
+      const viewResponse = await checkAuth({
         userId: "dan@cascade.com", // Has contributor on West Region
         userRoles: [],
         action: "View",
         resourceType: "Site",
         resourceId: "portland-manufacturing",
-      }).then((response) => {
-        expect(response.body.allowed).to.eq(true);
       });
+      assert.strictEqual(viewResponse.body.allowed, true);
 
-      cy.checkAuth({
+      const editResponse = await checkAuth({
         userId: "dan@cascade.com",
         userRoles: [],
         action: "Edit",
         resourceType: "Site",
         resourceId: "portland-manufacturing",
-      }).then((response) => {
-        expect(response.body.allowed).to.eq(true);
       });
+      assert.strictEqual(editResponse.body.allowed, true);
 
-      cy.checkAuth({
+      const deleteResponse = await checkAuth({
         userId: "dan@cascade.com",
         userRoles: [],
         action: "Delete",
         resourceType: "Site",
         resourceId: "portland-manufacturing",
-      }).then((response) => {
-        expect(response.body.allowed).to.eq(false);
       });
+      assert.strictEqual(deleteResponse.body.allowed, false);
     });
 
-    it("Coordinator can View, Edit, Create, and Delete", () => {
+    it("Coordinator can View, Edit, Create, and Delete", async () => {
       // Testing against a user with coordinator assignment
-      cy.checkAuth({
+      const viewResponse = await checkAuth({
         userId: "alice@example.com", // Has coordinator on portland-manufacturing
         userRoles: [],
         action: "View",
         resourceType: "Site",
         resourceId: "portland-manufacturing",
-      }).then((response) => {
-        expect(response.body.allowed).to.eq(true);
       });
+      assert.strictEqual(viewResponse.body.allowed, true);
 
-      cy.checkAuth({
+      const deleteResponse = await checkAuth({
         userId: "alice@example.com",
         userRoles: [],
         action: "Delete",
         resourceType: "Project",
         resourceId: "some-project",
         resourceParentSite: "portland-manufacturing",
-      }).then((response) => {
-        expect(response.body.allowed).to.eq(true);
       });
+      assert.strictEqual(deleteResponse.body.allowed, true);
     });
   });
 });

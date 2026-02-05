@@ -98,6 +98,10 @@
  *    ```
  */
 
+import { describe, it } from "node:test";
+import assert from "node:assert";
+import { checkAuth } from "./api.js";
+
 describe("Phase 2: Program Layer Authorization", () => {
   /**
    * ════════════════════════════════════════════════════════════════════════════
@@ -120,43 +124,40 @@ describe("Phase 2: Program Layer Authorization", () => {
    * This is a "broadly permissive" policy - any principal can View any Cycle.
    */
   describe("Cycles - Broadly Readable Reference Data", () => {
-    it("any authenticated user can View Cycles", () => {
-      cy.checkAuth({
+    it("any authenticated user can View Cycles", async () => {
+      const response = await checkAuth({
         userId: "random-user",
         userRoles: [],
         action: "View",
         resourceType: "Cycle",
         resourceId: "fy2024-q1",
-      }).then((response) => {
-        expect(response.status).to.eq(200);
-        expect(response.body.allowed).to.eq(true);
       });
+      assert.strictEqual(response.status, 200);
+      assert.strictEqual(response.body.allowed, true);
     });
 
-    it("user with viewer role can View Cycles", () => {
-      cy.checkAuth({
+    it("user with viewer role can View Cycles", async () => {
+      const response = await checkAuth({
         userId: "viewer-user",
         userRoles: ["viewer"],
         action: "View",
         resourceType: "Cycle",
         resourceId: "fy2024-q2",
-      }).then((response) => {
-        expect(response.status).to.eq(200);
-        expect(response.body.allowed).to.eq(true);
       });
+      assert.strictEqual(response.status, 200);
+      assert.strictEqual(response.body.allowed, true);
     });
 
-    it("administrator role can View Cycles", () => {
-      cy.checkAuth({
+    it("administrator role can View Cycles", async () => {
+      const response = await checkAuth({
         userId: "admin-user",
         userRoles: ["administrator"],
         action: "View",
         resourceType: "Cycle",
         resourceId: "fy2024-annual",
-      }).then((response) => {
-        expect(response.status).to.eq(200);
-        expect(response.body.allowed).to.eq(true);
       });
+      assert.strictEqual(response.status, 200);
+      assert.strictEqual(response.body.allowed, true);
     });
   });
 
@@ -167,45 +168,42 @@ describe("Phase 2: Program Layer Authorization", () => {
      * assignment cannot modify Cycles.
      */
 
-    it("regular user CANNOT Edit Cycles", () => {
-      cy.checkAuth({
+    it("regular user CANNOT Edit Cycles", async () => {
+      const response = await checkAuth({
         userId: "random-user",
         userRoles: [],
         action: "Edit",
         resourceType: "Cycle",
         resourceId: "fy2024-q1",
-      }).then((response) => {
-        expect(response.status).to.eq(200);
-        expect(response.body.allowed).to.eq(false);
       });
+      assert.strictEqual(response.status, 200);
+      assert.strictEqual(response.body.allowed, false);
     });
 
-    it("coordinator role without assignment CANNOT Edit Cycles", () => {
+    it("coordinator role without assignment CANNOT Edit Cycles", async () => {
       // Having coordinator role doesn't mean you can edit Cycles
-      cy.checkAuth({
+      const response = await checkAuth({
         userId: "coord-user",
         userRoles: ["coordinator"],
         action: "Edit",
         resourceType: "Cycle",
         resourceId: "fy2024-q1",
-      }).then((response) => {
-        expect(response.status).to.eq(200);
-        expect(response.body.allowed).to.eq(false);
       });
+      assert.strictEqual(response.status, 200);
+      assert.strictEqual(response.body.allowed, false);
     });
 
-    it("globalAdmin CAN Edit Cycles", () => {
+    it("globalAdmin CAN Edit Cycles", async () => {
       // Only globalAdmin has unrestricted access
-      cy.checkAuth({
+      const response = await checkAuth({
         userId: "super-admin",
         userRoles: ["globalAdmin"],
         action: "Edit",
         resourceType: "Cycle",
         resourceId: "fy2024-q1",
-      }).then((response) => {
-        expect(response.status).to.eq(200);
-        expect(response.body.allowed).to.eq(true);
       });
+      assert.strictEqual(response.status, 200);
+      assert.strictEqual(response.body.allowed, true);
     });
   });
 
@@ -227,56 +225,52 @@ describe("Phase 2: Program Layer Authorization", () => {
    * ```
    */
   describe("Global Admin - Full Program Hierarchy Access", () => {
-    it("globalAdmin can View Client entities", () => {
-      cy.checkAuth({
+    it("globalAdmin can View Client entities", async () => {
+      const response = await checkAuth({
         userId: "admin-1",
         userRoles: ["globalAdmin"],
         action: "View",
         resourceType: "Client",
         resourceId: "energy-trust",
-      }).then((response) => {
-        expect(response.status).to.eq(200);
-        expect(response.body.allowed).to.eq(true);
       });
+      assert.strictEqual(response.status, 200);
+      assert.strictEqual(response.body.allowed, true);
     });
 
-    it("globalAdmin can Edit Program entities", () => {
-      cy.checkAuth({
+    it("globalAdmin can Edit Program entities", async () => {
+      const response = await checkAuth({
         userId: "admin-1",
         userRoles: ["globalAdmin"],
         action: "Edit",
         resourceType: "Program",
         resourceId: "industrial-sem",
-      }).then((response) => {
-        expect(response.status).to.eq(200);
-        expect(response.body.allowed).to.eq(true);
       });
+      assert.strictEqual(response.status, 200);
+      assert.strictEqual(response.body.allowed, true);
     });
 
-    it("globalAdmin can perform Admin action on Cohort", () => {
-      cy.checkAuth({
+    it("globalAdmin can perform Admin action on Cohort", async () => {
+      const response = await checkAuth({
         userId: "admin-1",
         userRoles: ["globalAdmin"],
         action: "Admin",
         resourceType: "Cohort",
         resourceId: "cohort-2024",
-      }).then((response) => {
-        expect(response.status).to.eq(200);
-        expect(response.body.allowed).to.eq(true);
       });
+      assert.strictEqual(response.status, 200);
+      assert.strictEqual(response.body.allowed, true);
     });
 
-    it("globalAdmin can Delete Participation records", () => {
-      cy.checkAuth({
+    it("globalAdmin can Delete Participation records", async () => {
+      const response = await checkAuth({
         userId: "admin-1",
         userRoles: ["globalAdmin"],
         action: "Delete",
         resourceType: "Participation",
         resourceId: "part-001",
-      }).then((response) => {
-        expect(response.status).to.eq(200);
-        expect(response.body.allowed).to.eq(true);
       });
+      assert.strictEqual(response.status, 200);
+      assert.strictEqual(response.body.allowed, true);
     });
   });
 
@@ -291,56 +285,52 @@ describe("Phase 2: Program Layer Authorization", () => {
    * Role ≠ Access. Role + Assignment = Access.
    */
   describe("Roles Without Assignment - Program Entities Denied", () => {
-    it("coordinator role without assignment CANNOT View Client", () => {
-      cy.checkAuth({
+    it("coordinator role without assignment CANNOT View Client", async () => {
+      const response = await checkAuth({
         userId: "coord-1",
         userRoles: ["coordinator"],
         action: "View",
         resourceType: "Client",
         resourceId: "energy-trust",
-      }).then((response) => {
-        expect(response.status).to.eq(200);
-        expect(response.body.allowed).to.eq(false);
       });
+      assert.strictEqual(response.status, 200);
+      assert.strictEqual(response.body.allowed, false);
     });
 
-    it("administrator role without assignment CANNOT View Program", () => {
-      cy.checkAuth({
+    it("administrator role without assignment CANNOT View Program", async () => {
+      const response = await checkAuth({
         userId: "admin-2",
         userRoles: ["administrator"],
         action: "View",
         resourceType: "Program",
         resourceId: "industrial-sem",
-      }).then((response) => {
-        expect(response.status).to.eq(200);
-        expect(response.body.allowed).to.eq(false);
       });
+      assert.strictEqual(response.status, 200);
+      assert.strictEqual(response.body.allowed, false);
     });
 
-    it("facilitator role without assignment CANNOT View Cohort", () => {
-      cy.checkAuth({
+    it("facilitator role without assignment CANNOT View Cohort", async () => {
+      const response = await checkAuth({
         userId: "fac-1",
         userRoles: ["facilitator"],
         action: "View",
         resourceType: "Cohort",
         resourceId: "cohort-2024",
-      }).then((response) => {
-        expect(response.status).to.eq(200);
-        expect(response.body.allowed).to.eq(false);
       });
+      assert.strictEqual(response.status, 200);
+      assert.strictEqual(response.body.allowed, false);
     });
 
-    it("viewer role without assignment CANNOT View Participation", () => {
-      cy.checkAuth({
+    it("viewer role without assignment CANNOT View Participation", async () => {
+      const response = await checkAuth({
         userId: "viewer-1",
         userRoles: ["viewer"],
         action: "View",
         resourceType: "Participation",
         resourceId: "part-001",
-      }).then((response) => {
-        expect(response.status).to.eq(200);
-        expect(response.body.allowed).to.eq(false);
       });
+      assert.strictEqual(response.status, 200);
+      assert.strictEqual(response.body.allowed, false);
     });
   });
 
@@ -360,46 +350,43 @@ describe("Phase 2: Program Layer Authorization", () => {
    * provides fine-grained control over which staff can access which Cohorts.
    */
   describe("Implementer - Metadata Only (Not Access Hierarchy)", () => {
-    it("regular user CANNOT View Implementer entity directly", () => {
+    it("regular user CANNOT View Implementer entity directly", async () => {
       // Implementer entities are restricted - not broadly readable
-      cy.checkAuth({
+      const response = await checkAuth({
         userId: "staff-1",
         userRoles: [],
         action: "View",
         resourceType: "Implementer",
         resourceId: "stillwater-energy",
-      }).then((response) => {
-        expect(response.status).to.eq(200);
-        expect(response.body.allowed).to.eq(false);
       });
+      assert.strictEqual(response.status, 200);
+      assert.strictEqual(response.body.allowed, false);
     });
 
-    it("globalAdmin CAN View Implementer entities", () => {
-      cy.checkAuth({
+    it("globalAdmin CAN View Implementer entities", async () => {
+      const response = await checkAuth({
         userId: "admin-1",
         userRoles: ["globalAdmin"],
         action: "View",
         resourceType: "Implementer",
         resourceId: "stillwater-energy",
-      }).then((response) => {
-        expect(response.status).to.eq(200);
-        expect(response.body.allowed).to.eq(true);
       });
+      assert.strictEqual(response.status, 200);
+      assert.strictEqual(response.body.allowed, true);
     });
 
-    it("being associated with Implementer does NOT grant Cohort access", () => {
+    it("being associated with Implementer does NOT grant Cohort access", async () => {
       // Staff must have explicit Cohort assignment
-      cy.checkAuth({
+      const response = await checkAuth({
         userId: "stillwater-staff-1",
         userRoles: [],
         action: "View",
         resourceType: "Cohort",
         resourceId: "cohort-2024",
         // Note: no assignment to this Cohort
-      }).then((response) => {
-        expect(response.status).to.eq(200);
-        expect(response.body.allowed).to.eq(false);
       });
+      assert.strictEqual(response.status, 200);
+      assert.strictEqual(response.body.allowed, false);
     });
   });
 
@@ -415,43 +402,40 @@ describe("Phase 2: Program Layer Authorization", () => {
    * permission model by placing them in the hierarchy.
    */
   describe("Claims - Access via Site Permissions", () => {
-    it("user without Site access CANNOT View Claims", () => {
-      cy.checkAuth({
+    it("user without Site access CANNOT View Claims", async () => {
+      const response = await checkAuth({
         userId: "random-user",
         userRoles: [],
         action: "View",
         resourceType: "Claim",
         resourceId: "claim-001",
-      }).then((response) => {
-        expect(response.status).to.eq(200);
-        expect(response.body.allowed).to.eq(false);
       });
+      assert.strictEqual(response.status, 200);
+      assert.strictEqual(response.body.allowed, false);
     });
 
-    it("globalAdmin CAN View Claims", () => {
-      cy.checkAuth({
+    it("globalAdmin CAN View Claims", async () => {
+      const response = await checkAuth({
         userId: "admin-1",
         userRoles: ["globalAdmin"],
         action: "View",
         resourceType: "Claim",
         resourceId: "claim-001",
-      }).then((response) => {
-        expect(response.status).to.eq(200);
-        expect(response.body.allowed).to.eq(true);
       });
+      assert.strictEqual(response.status, 200);
+      assert.strictEqual(response.body.allowed, true);
     });
 
-    it("globalAdmin CAN Edit Claims", () => {
-      cy.checkAuth({
+    it("globalAdmin CAN Edit Claims", async () => {
+      const response = await checkAuth({
         userId: "admin-1",
         userRoles: ["globalAdmin"],
         action: "Edit",
         resourceType: "Claim",
         resourceId: "claim-001",
-      }).then((response) => {
-        expect(response.status).to.eq(200);
-        expect(response.body.allowed).to.eq(true);
       });
+      assert.strictEqual(response.status, 200);
+      assert.strictEqual(response.body.allowed, true);
     });
   });
 
@@ -489,7 +473,7 @@ describe("Phase 2: Program Layer Authorization", () => {
     it("documents expected Cohort-level access pattern", () => {
       // This test documents the expected behavior
       // Implementation requires Cohort assignment templates
-      expect(true).to.eq(true);
+      assert.strictEqual(true, true);
     });
 
     /**
@@ -508,7 +492,7 @@ describe("Phase 2: Program Layer Authorization", () => {
     it("documents expected Client-level access pattern", () => {
       // This test documents the expected behavior
       // Implementation requires Client assignment templates
-      expect(true).to.eq(true);
+      assert.strictEqual(true, true);
     });
   });
 });

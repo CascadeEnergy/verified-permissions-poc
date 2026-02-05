@@ -1,0 +1,16 @@
+{
+  "name": "gazebo-poc-health",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "health": "npm run build && node --test --test-reporter spec dist/**/*.test.js",
+    "test": "echo 'No unit tests for health. Run npm run health post-deployment'",
+    "build": "tsc",
+    "lint": "echo 'No lint configured'"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.3.0"
+  }
+}
