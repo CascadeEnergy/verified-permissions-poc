@@ -1,0 +1,199 @@
+<mxfile host="app.diagrams.net" modified="2024-01-01T00:00:00.000Z" agent="Claude" version="21.0.0">
+  <diagram name="Dual Hierarchy" id="dual-hierarchy">
+    <mxGraphModel dx="1200" dy="800" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1100" pageHeight="850" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <!-- System (Root) -->
+        <mxCell id="system" value="&lt;b&gt;System&lt;/b&gt;&lt;br&gt;&lt;i style=&quot;font-size:10px;color:#666&quot;&gt;(root entity)&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;verticalAlign=middle;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="290" y="30" width="140" height="50" as="geometry" />
+        </mxCell>
+
+        <!-- Org Hierarchy Header -->
+        <mxCell id="org-header" value="ORGANIZATIONAL HIERARCHY&lt;br&gt;&lt;i&gt;(Physical / Structural)&lt;/i&gt;" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=14;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="80" y="100" width="200" height="40" as="geometry" />
+        </mxCell>
+
+        <!-- Program Hierarchy Header -->
+        <mxCell id="prog-header" value="PROGRAM HIERARCHY&lt;br&gt;&lt;i&gt;(Contractual / Temporal)&lt;/i&gt;" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=14;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="420" y="100" width="200" height="40" as="geometry" />
+        </mxCell>
+
+        <!-- Organization -->
+        <mxCell id="org" value="&lt;b&gt;Organization&lt;/b&gt;&lt;br&gt;&lt;i style=&quot;font-size:10px;color:#666&quot;&gt;e.g. Acme Industries&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="110" y="160" width="140" height="50" as="geometry" />
+        </mxCell>
+
+        <!-- Region -->
+        <mxCell id="region" value="&lt;b&gt;Region&lt;/b&gt;&lt;br&gt;&lt;i style=&quot;font-size:10px;color:#666&quot;&gt;e.g. West Division&lt;/i&gt;&lt;br&gt;&lt;i style=&quot;font-size:9px;color:#999&quot;&gt;[optional]&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="110" y="250" width="140" height="60" as="geometry" />
+        </mxCell>
+
+        <!-- Client -->
+        <mxCell id="client" value="&lt;b&gt;Client&lt;/b&gt;&lt;br&gt;&lt;i style=&quot;font-size:10px;color:#666&quot;&gt;e.g. DOE, BPA, Utility&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="450" y="160" width="140" height="50" as="geometry" />
+        </mxCell>
+
+        <!-- Program -->
+        <mxCell id="program" value="&lt;b&gt;Program&lt;/b&gt;&lt;br&gt;&lt;i style=&quot;font-size:10px;color:#666&quot;&gt;e.g. SEM 2024&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="450" y="250" width="140" height="50" as="geometry" />
+        </mxCell>
+
+        <!-- Cohort -->
+        <mxCell id="cohort" value="&lt;b&gt;Cohort&lt;/b&gt;&lt;br&gt;&lt;i style=&quot;font-size:10px;color:#666&quot;&gt;e.g. Spring 2024&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="450" y="340" width="140" height="50" as="geometry" />
+        </mxCell>
+
+        <!-- Participation -->
+        <mxCell id="participation" value="&lt;b&gt;Participation&lt;/b&gt;&lt;br&gt;&lt;i style=&quot;font-size:10px;color:#666&quot;&gt;Site enrollment&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;verticalAlign=middle;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="290" y="440" width="140" height="50" as="geometry" />
+        </mxCell>
+
+        <!-- Cycle -->
+        <mxCell id="cycle" value="&lt;b&gt;Cycle&lt;/b&gt;&lt;br&gt;&lt;i style=&quot;font-size:10px;color:#666&quot;&gt;Reporting Period&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="450" y="440" width="140" height="50" as="geometry" />
+        </mxCell>
+
+        <!-- Site -->
+        <mxCell id="site" value="&lt;b&gt;Site&lt;/b&gt;&lt;br&gt;&lt;i style=&quot;font-size:10px;color:#666&quot;&gt;e.g. Portland Mfg&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;verticalAlign=middle;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="110" y="440" width="140" height="50" as="geometry" />
+        </mxCell>
+
+        <!-- Project -->
+        <mxCell id="project" value="&lt;b&gt;Project&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="40" y="550" width="90" height="40" as="geometry" />
+        </mxCell>
+
+        <!-- Model -->
+        <mxCell id="model" value="&lt;b&gt;Model&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="140" y="550" width="90" height="40" as="geometry" />
+        </mxCell>
+
+        <!-- Claim -->
+        <mxCell id="claim" value="&lt;b&gt;Claim&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="240" y="550" width="90" height="40" as="geometry" />
+        </mxCell>
+
+        <!-- Arrows -->
+        <!-- System to Organization -->
+        <mxCell id="arrow0a" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;endFill=1;strokeWidth=2;strokeColor=#b85450;exitX=0;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="system" target="org">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="290" y="100" />
+              <mxPoint x="180" y="100" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- System to Client -->
+        <mxCell id="arrow0b" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;endFill=1;strokeWidth=2;strokeColor=#b85450;exitX=1;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="system" target="client">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="430" y="100" />
+              <mxPoint x="520" y="100" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- Org to Region -->
+        <mxCell id="arrow1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;endFill=1;strokeWidth=2;strokeColor=#6c8ebf;" edge="1" parent="1" source="org" target="region">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Region to Site -->
+        <mxCell id="arrow2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;endFill=1;strokeWidth=2;strokeColor=#6c8ebf;" edge="1" parent="1" source="region" target="site">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Org to Site (dashed - direct) -->
+        <mxCell id="arrow3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;endFill=1;strokeWidth=1;strokeColor=#6c8ebf;dashed=1;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="org" target="site">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="70" y="185" />
+              <mxPoint x="70" y="465" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- Client to Program -->
+        <mxCell id="arrow4" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;endFill=1;strokeWidth=2;strokeColor=#82b366;" edge="1" parent="1" source="client" target="program">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Program to Cohort -->
+        <mxCell id="arrow5" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;endFill=1;strokeWidth=2;strokeColor=#82b366;" edge="1" parent="1" source="program" target="cohort">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Cohort to Participation -->
+        <mxCell id="arrow6" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;endFill=1;strokeWidth=2;strokeColor=#9673a6;" edge="1" parent="1" source="cohort" target="participation">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="520" y="410" />
+              <mxPoint x="360" y="410" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- Cohort to Cycle -->
+        <mxCell id="arrow7" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;endFill=1;strokeWidth=2;strokeColor=#82b366;" edge="1" parent="1" source="cohort" target="cycle">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Participation to Site (the bridge!) -->
+        <mxCell id="arrow8" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;endFill=1;strokeWidth=3;strokeColor=#9673a6;" edge="1" parent="1" source="participation" target="site">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Site to Project -->
+        <mxCell id="arrow9" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;endFill=1;strokeWidth=1;strokeColor=#666666;" edge="1" parent="1" source="site" target="project">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Site to Model -->
+        <mxCell id="arrow10" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;endFill=1;strokeWidth=1;strokeColor=#666666;" edge="1" parent="1" source="site" target="model">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Site to Claim -->
+        <mxCell id="arrow11" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;endFill=1;strokeWidth=1;strokeColor=#666666;" edge="1" parent="1" source="site" target="claim">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Legend -->
+        <mxCell id="legend-box" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#999999;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="500" y="530" width="180" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="legend-title" value="&lt;b&gt;Legend&lt;/b&gt;" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="510" y="535" width="60" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="legend-system" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="1">
+          <mxGeometry x="510" y="558" width="20" height="15" as="geometry" />
+        </mxCell>
+        <mxCell id="legend-system-text" value="System (root)" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="535" y="556" width="80" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="legend-org" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="510" y="578" width="20" height="15" as="geometry" />
+        </mxCell>
+        <mxCell id="legend-org-text" value="Org Hierarchy" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="535" y="576" width="80" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="legend-prog" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="510" y="598" width="20" height="15" as="geometry" />
+        </mxCell>
+        <mxCell id="legend-prog-text" value="Program Hierarchy" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="535" y="596" width="100" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="legend-bridge" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;" vertex="1" parent="1">
+          <mxGeometry x="510" y="618" width="20" height="15" as="geometry" />
+        </mxCell>
+        <mxCell id="legend-bridge-text" value="Bridge (Participation)" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="535" y="616" width="110" height="20" as="geometry" />
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
