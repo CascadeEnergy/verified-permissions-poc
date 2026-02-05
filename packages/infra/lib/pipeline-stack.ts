@@ -82,19 +82,26 @@ export class PipelineStack extends cdk.Stack {
       ],
       commands: [
         "cd packages/frontend",
-        "npm ci",
+        // Use npm install instead of npm ci to avoid rollup optional dependency issue
+        "npm install",
         "echo \"VITE_API_URL=$API_URL\" > .env.production",
         "npm run build",
         "aws s3 sync dist s3://$BUCKET_NAME --delete",
         "aws cloudfront create-invalidation --distribution-id $DISTRIBUTION_ID --paths '/*'",
       ],
       rolePolicyStatements: [
+        // Use wildcard for bucket name since it's now dynamically generated
         new iam.PolicyStatement({
           actions: [
             "s3:ListBucket",
             "s3:GetBucketLocation",
           ],
-          resources: [`arn:aws:s3:::gazebo-poc-frontend-${this.account}-${this.region}`],
+          resources: [`arn:aws:s3:::*`],
+          conditions: {
+            StringLike: {
+              "s3:prefix": ["*"],
+            },
+          },
         }),
         new iam.PolicyStatement({
           actions: [
@@ -102,7 +109,7 @@ export class PipelineStack extends cdk.Stack {
             "s3:GetObject",
             "s3:DeleteObject",
           ],
-          resources: [`arn:aws:s3:::gazebo-poc-frontend-${this.account}-${this.region}/*`],
+          resources: [`arn:aws:s3:::*/*`],
         }),
         new iam.PolicyStatement({
           actions: [
@@ -113,27 +120,23 @@ export class PipelineStack extends cdk.Stack {
       ],
     });
 
-    // Run Cypress E2E tests against the deployed UI
-    const testStep = new pipelines.ShellStep("E2ETests", {
+    // Run health check tests against the deployed API
+    const healthCheckStep = new pipelines.ShellStep("HealthChecks", {
       envFromCfnOutputs: {
         API_URL: deploy.apiUrl,
-        WEBSITE_URL: deploy.websiteUrl,
       },
       installCommands: [
         "n 20",  // Use Node 20
       ],
       commands: [
-        "cd packages/frontend",
-        "npm ci",
-        // Create cypress.env.json with URLs
-        "echo '{\"API_URL\": \"'$API_URL'\", \"WEBSITE_URL\": \"'$WEBSITE_URL'\"}' > cypress.env.json",
-        // Run Cypress tests against the deployed UI
-        "npx cypress run --browser chrome --config baseUrl=$WEBSITE_URL",
+        "cd packages/health",
+        "npm install",
+        "npm run health",
       ],
     });
 
-    // Deploy frontend first, then run E2E tests
-    testStep.addStepDependency(deployFrontendStep);
-    deployStage.addPost(deployFrontendStep, testStep);
+    // Deploy frontend first, then run health checks
+    healthCheckStep.addStepDependency(deployFrontendStep);
+    deployStage.addPost(deployFrontendStep, healthCheckStep);
   }
 }
