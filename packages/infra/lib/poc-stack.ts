@@ -256,9 +256,8 @@ export class PocStack extends cdk.Stack {
       ),
     });
 
-    // S3 bucket for frontend
+    // S3 bucket for frontend (let CDK generate unique name)
     const websiteBucket = new s3.Bucket(this, "WebsiteBucket", {
-      bucketName: `gazebo-poc-frontend-${this.account}-${this.region}`,
       blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
       removalPolicy: cdk.RemovalPolicy.DESTROY,
       autoDeleteObjects: true,
