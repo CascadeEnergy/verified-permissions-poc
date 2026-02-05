@@ -7,10 +7,9 @@
           "attributes": {
             "email": { "type": "String", "required": false }
           }
-        },
-        "memberOfTypes": ["Role"]
+        }
       },
-      "Role": {
+      "System": {
         "shape": {
           "type": "Record",
           "attributes": {
@@ -24,7 +23,8 @@
           "attributes": {
             "name": { "type": "String", "required": false }
           }
-        }
+        },
+        "memberOfTypes": ["System"]
       },
       "Region": {
         "shape": {
@@ -89,7 +89,8 @@
           "attributes": {
             "name": { "type": "String", "required": false }
           }
-        }
+        },
+        "memberOfTypes": ["System"]
       },
       "Program": {
         "shape": {
@@ -148,31 +149,31 @@
       "View": {
         "appliesTo": {
           "principalTypes": ["User"],
-          "resourceTypes": ["Site", "Project", "Model", "Module", "Organization", "Region", "Claim", "Client", "Program", "Cohort", "Cycle", "Participation", "Implementer"]
+          "resourceTypes": ["System", "Site", "Project", "Model", "Module", "Organization", "Region", "Claim", "Client", "Program", "Cohort", "Cycle", "Participation", "Implementer"]
         }
       },
       "Edit": {
         "appliesTo": {
           "principalTypes": ["User"],
-          "resourceTypes": ["Site", "Project", "Model", "Claim", "Client", "Program", "Cohort", "Participation"]
+          "resourceTypes": ["System", "Site", "Project", "Model", "Claim", "Client", "Program", "Cohort", "Participation"]
         }
       },
       "Create": {
         "appliesTo": {
           "principalTypes": ["User"],
-          "resourceTypes": ["Site", "Claim", "Program", "Cohort", "Cycle", "Participation"]
+          "resourceTypes": ["System", "Site", "Claim", "Program", "Cohort", "Cycle", "Participation"]
         }
       },
       "Delete": {
         "appliesTo": {
           "principalTypes": ["User"],
-          "resourceTypes": ["Site", "Project", "Model", "Claim", "Program", "Cohort", "Participation"]
+          "resourceTypes": ["System", "Site", "Project", "Model", "Claim", "Program", "Cohort", "Participation"]
         }
       },
       "Admin": {
         "appliesTo": {
           "principalTypes": ["User"],
-          "resourceTypes": ["Site", "Organization", "Client", "Program", "Cohort"]
+          "resourceTypes": ["System", "Site", "Organization", "Client", "Program", "Cohort"]
         }
       }
     }

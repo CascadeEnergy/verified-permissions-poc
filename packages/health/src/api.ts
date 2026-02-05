@@ -6,7 +6,6 @@
 // Authorization request type matching the backend API
 export interface AuthRequest {
   userId: string;
-  userRoles: string[];
   action: string;
   resourceType: string;
   resourceId: string;

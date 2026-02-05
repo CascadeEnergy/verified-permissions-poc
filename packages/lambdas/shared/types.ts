@@ -1,22 +1,27 @@
-export type Role = "globalAdmin" | "administrator" | "coordinator" | "facilitator" | "contributor" | "champion" | "viewer";
+// Permission levels (used for template selection when assigning access)
+export type PermissionLevel = "administrator" | "coordinator" | "facilitator" | "contributor" | "champion" | "viewer";
 
 // Phase 1: Org hierarchy targets
 export type OrgTargetType = "Site" | "Organization" | "Region";
 // Phase 2: Program hierarchy targets
 export type ProgramTargetType = "Client" | "Program" | "Cohort" | "Participation";
-export type TargetType = OrgTargetType | ProgramTargetType;
+// System-level target (for global admin access)
+export type SystemTargetType = "System";
+export type TargetType = OrgTargetType | ProgramTargetType | SystemTargetType;
 
 // Phase 1: Org hierarchy resources
 export type OrgResourceType = "Site" | "Project" | "Model" | "Module" | "Organization" | "Region";
 // Phase 2: Program hierarchy resources
 export type ProgramResourceType = "Client" | "Program" | "Cohort" | "Cycle" | "Participation" | "Claim" | "Implementer";
-export type ResourceType = OrgResourceType | ProgramResourceType;
+// System resource
+export type SystemResourceType = "System";
+export type ResourceType = OrgResourceType | ProgramResourceType | SystemResourceType;
 
 export type Action = "View" | "Edit" | "Create" | "Delete" | "Admin";
 
 export interface RoleAssignment {
   userId: string;
-  role: Role;
+  role: PermissionLevel;
   targetType: TargetType;
   targetId: string;
 }
@@ -42,11 +47,10 @@ export interface AuthRequest {
   resourceCreatedBy?: string;
   resourceParentSite?: string;  // Legacy: kept for backwards compatibility
   resourceParents?: ResourceParents;  // New: flexible parent specification
-  userRoles?: Role[];
 }
 
 export interface BatchAuthRequest {
   requests: AuthRequest[];
 }
 
-export const ROLES: Role[] = ["globalAdmin", "administrator", "coordinator", "facilitator", "contributor", "champion", "viewer"];
+export const PERMISSION_LEVELS: PermissionLevel[] = ["administrator", "coordinator", "facilitator", "contributor", "champion", "viewer"];

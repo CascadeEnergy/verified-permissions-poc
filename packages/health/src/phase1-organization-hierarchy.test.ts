@@ -5,11 +5,11 @@
  * ║                                                                              ║
  * ║  These tests validate authorization for the Organization hierarchy:          ║
  * ║                                                                              ║
- * ║      Organization → Region → Site → Project/Model                            ║
+ * ║      System → Organization → Region → Site → Project/Model                   ║
  * ║                                                                              ║
  * ║  Key concepts demonstrated:                                                  ║
- * ║  • Static policies (globalAdmin, creator privilege)                          ║
- * ║  • Template-linked policies (per-resource role assignments)                  ║
+ * ║  • Template-linked policies (all access via policy assignments)              ║
+ * ║  • Static policies (creator privilege)                                       ║
  * ║  • Hierarchy traversal (access at Region grants access to Sites within)      ║
  * ║  • Default deny (no matching policy = denied)                                ║
  * ║                                                                              ║
@@ -20,23 +20,26 @@
  * TEST HIERARCHY STRUCTURE
  * ========================
  *
- * The mock data creates this organization structure:
+ * The hierarchy includes a System entity at the root:
  *
- *   Cascade Energy (Organization:1)
- *   ├── West Region (Region:10)
- *   │   ├── portland-manufacturing (Site)
- *   │   └── seattle-hq (Site)
- *   └── East Region (Region:11)
- *       └── boston-office (Site)
+ *   System (gazebo)
+ *   └── Cascade Energy (Organization:1)
+ *       ├── West Region (Region:10)
+ *       │   ├── portland-manufacturing (Site)
+ *       │   └── seattle-hq (Site)
+ *       └── East Region (Region:11)
+ *           └── boston-office (Site)
  *
- *   Goodwill Industries (Organization:200)
- *   └── Portland Metro (Region:201)
- *       └── goodwill-happy-valley (Site)
+ *   System (gazebo)
+ *   └── Goodwill Industries (Organization:200)
+ *       └── Portland Metro (Region:201)
+ *           └── goodwill-happy-valley (Site)
  *
  * This structure tests:
  * - Cross-region isolation within same organization
  * - Cross-organization isolation
  * - Hierarchy inheritance (Region access → Site access)
+ * - System-level admin access (access to everything)
  */
 
 /**
@@ -45,16 +48,7 @@
  *
  * Static Policies (always active):
  *
- * 1. Global Admin - unrestricted access:
- *    ```cedar
- *    permit (
- *        principal in Gazebo::Role::"globalAdmin",
- *        action,
- *        resource
- *    );
- *    ```
- *
- * 2. Creator Privilege - access to own resources:
+ * 1. Creator Privilege - access to own resources:
  *    ```cedar
  *    permit (
  *        principal,
@@ -66,6 +60,16 @@
  *    ```
  *
  * Template Policies (instantiated per user-resource assignment):
+ *
+ * 2. Administrator Template - Full access (used for global admin):
+ *    ```cedar
+ *    permit (
+ *        principal == ?principal,
+ *        action,
+ *        resource in ?resource
+ *    );
+ *    ```
+ *    When assigned to System::gazebo, grants access to everything.
  *
  * 3. Viewer Template - View only:
  *    ```cedar
@@ -106,27 +110,29 @@ describe("Phase 1: Organization Hierarchy Authorization", () => {
    * SECTION 1: GLOBAL ADMIN ACCESS
    * ════════════════════════════════════════════════════════════════════════════
    *
-   * The globalAdmin role is the ONLY truly global role. It's defined as a static
-   * policy that permits any action on any resource.
+   * Global admin is implemented as a template-linked policy that assigns the
+   * administrator template to the System::gazebo entity. Since all Organizations
+   * are memberOf System, this grants access to everything.
    *
-   * All other roles (administrator, coordinator, facilitator, champion,
-   * contributor, viewer) have NO inherent access - they require template-based
-   * assignments to specific resources.
-   *
-   * Cedar Policy:
-   * ```cedar
-   * permit (
-   *     principal in Gazebo::Role::"globalAdmin",
-   *     action,
-   *     resource
-   * );
+   * Assignment in assignments.json:
+   * ```json
+   * {
+   *   "id": "GlobalAdmin",
+   *   "template": "administrator",
+   *   "principal": { "entityType": "Gazebo::User", "entityId": "admin@cascade.com" },
+   *   "resource": { "entityType": "Gazebo::System", "entityId": "gazebo" }
+   * }
    * ```
+   *
+   * This approach is more secure than role-based access because:
+   * - Access is controlled by the policy store, not user claims
+   * - Users cannot claim to be admins without an actual policy assignment
+   * - All access follows the same template-linked pattern
    */
-  describe("Global Admin - Full Access", () => {
+  describe("Global Admin - Full Access (via System assignment)", () => {
     it("can View any Site", async () => {
       const response = await checkAuth({
-        userId: "admin-1",
-        userRoles: ["globalAdmin"],
+        userId: "admin@cascade.com",
         action: "View",
         resourceType: "Site",
         resourceId: "portland-manufacturing",
@@ -137,8 +143,7 @@ describe("Phase 1: Organization Hierarchy Authorization", () => {
 
     it("can Delete any Site", async () => {
       const response = await checkAuth({
-        userId: "admin-1",
-        userRoles: ["globalAdmin"],
+        userId: "admin@cascade.com",
         action: "Delete",
         resourceType: "Site",
         resourceId: "portland-manufacturing",
@@ -149,8 +154,7 @@ describe("Phase 1: Organization Hierarchy Authorization", () => {
 
     it("can perform Admin actions on Organizations", async () => {
       const response = await checkAuth({
-        userId: "admin-1",
-        userRoles: ["globalAdmin"],
+        userId: "admin@cascade.com",
         action: "Admin",
         resourceType: "Organization",
         resourceId: "1",
@@ -162,8 +166,7 @@ describe("Phase 1: Organization Hierarchy Authorization", () => {
     it("can access resources in ANY organization", async () => {
       // Goodwill is a completely separate organization
       const response = await checkAuth({
-        userId: "admin-1",
-        userRoles: ["globalAdmin"],
+        userId: "admin@cascade.com",
         action: "Edit",
         resourceType: "Site",
         resourceId: "goodwill-happy-valley",
@@ -175,26 +178,20 @@ describe("Phase 1: Organization Hierarchy Authorization", () => {
 
   /**
    * ════════════════════════════════════════════════════════════════════════════
-   * SECTION 2: ROLES WITHOUT ASSIGNMENT ARE DENIED
+   * SECTION 2: USERS WITHOUT ASSIGNMENT ARE DENIED
    * ════════════════════════════════════════════════════════════════════════════
    *
-   * This is a critical concept: roles like "administrator", "coordinator",
-   * "facilitator", "champion", "contributor", and "viewer" do NOT grant any
-   * inherent access.
-   *
-   * These roles are PERMISSION LEVELS, not job titles. They define what
-   * capabilities a user has WHEN assigned to a specific resource via a
-   * template-linked policy.
-   *
-   * Without an explicit assignment, these roles provide zero access.
+   * Without an explicit template-linked policy assignment, users have no access.
    * This is AWS Verified Permissions' default-deny behavior.
+   *
+   * There are no "roles" that grant inherent access. Permission levels
+   * (administrator, coordinator, etc.) are just template names that define
+   * what capabilities a user gets WHEN assigned to a specific resource.
    */
-  describe("Roles Without Assignment - Denied", () => {
-    it("administrator role has NO inherent access", async () => {
-      // Having "administrator" role doesn't mean anything without an assignment
+  describe("Users Without Assignment - Denied", () => {
+    it("unassigned user cannot View any Site", async () => {
       const response = await checkAuth({
-        userId: "admin-2",
-        userRoles: ["administrator"],
+        userId: "unassigned-user@example.com",
         action: "View",
         resourceType: "Site",
         resourceId: "portland-manufacturing",
@@ -203,37 +200,12 @@ describe("Phase 1: Organization Hierarchy Authorization", () => {
       assert.strictEqual(response.body.allowed, false);
     });
 
-    it("coordinator role has NO inherent access", async () => {
+    it("unassigned user cannot View any Organization", async () => {
       const response = await checkAuth({
-        userId: "coord-1",
-        userRoles: ["coordinator"],
+        userId: "another-unassigned@example.com",
         action: "View",
-        resourceType: "Site",
-        resourceId: "portland-manufacturing",
-      });
-      assert.strictEqual(response.status, 200);
-      assert.strictEqual(response.body.allowed, false);
-    });
-
-    it("facilitator role has NO inherent access", async () => {
-      const response = await checkAuth({
-        userId: "facilitator-1",
-        userRoles: ["facilitator"],
-        action: "View",
-        resourceType: "Site",
-        resourceId: "portland-manufacturing",
-      });
-      assert.strictEqual(response.status, 200);
-      assert.strictEqual(response.body.allowed, false);
-    });
-
-    it("viewer role has NO inherent access", async () => {
-      const response = await checkAuth({
-        userId: "viewer-1",
-        userRoles: ["viewer"],
-        action: "View",
-        resourceType: "Site",
-        resourceId: "portland-manufacturing",
+        resourceType: "Organization",
+        resourceId: "1",
       });
       assert.strictEqual(response.status, 200);
       assert.strictEqual(response.body.allowed, false);
@@ -260,15 +232,14 @@ describe("Phase 1: Organization Hierarchy Authorization", () => {
    * ```
    *
    * Key points:
-   * - Works for ANY user, regardless of roles
+   * - Works for ANY user, regardless of assignments
    * - Only grants View and Edit (not Delete, Admin, etc.)
    * - Requires the resource to have a `createdBy` attribute
    */
   describe("Creator Privilege - Own Resources", () => {
-    it("user can View their own Project (even without any roles)", async () => {
+    it("user can View their own Project (even without any assignment)", async () => {
       const response = await checkAuth({
         userId: "user-1",
-        userRoles: [], // No roles at all!
         action: "View",
         resourceType: "Project",
         resourceId: "proj-1",
@@ -282,7 +253,6 @@ describe("Phase 1: Organization Hierarchy Authorization", () => {
     it("user can Edit their own Project", async () => {
       const response = await checkAuth({
         userId: "user-1",
-        userRoles: [],
         action: "Edit",
         resourceType: "Project",
         resourceId: "proj-1",
@@ -296,7 +266,6 @@ describe("Phase 1: Organization Hierarchy Authorization", () => {
     it("user CANNOT Edit someone else's Project", async () => {
       const response = await checkAuth({
         userId: "user-1",
-        userRoles: [],
         action: "Edit",
         resourceType: "Project",
         resourceId: "proj-2",
@@ -310,7 +279,6 @@ describe("Phase 1: Organization Hierarchy Authorization", () => {
     it("creator privilege does NOT grant Delete access", async () => {
       const response = await checkAuth({
         userId: "user-1",
-        userRoles: [],
         action: "Delete",
         resourceType: "Project",
         resourceId: "proj-1",
@@ -331,15 +299,13 @@ describe("Phase 1: Organization Hierarchy Authorization", () => {
    * permits an action, it is denied.
    *
    * This means:
-   * - Users with no roles and no creator relationship = DENIED
-   * - Users with roles but no resource assignment = DENIED
+   * - Users without assignment and no creator relationship = DENIED
    * - Any action not explicitly permitted = DENIED
    */
   describe("Default Deny - No Matching Policy", () => {
-    it("user with no roles cannot View a Site", async () => {
+    it("user without assignment cannot View a Site", async () => {
       const response = await checkAuth({
         userId: "random-user",
-        userRoles: [],
         action: "View",
         resourceType: "Site",
         resourceId: "portland-manufacturing",
@@ -348,10 +314,9 @@ describe("Phase 1: Organization Hierarchy Authorization", () => {
       assert.strictEqual(response.body.allowed, false);
     });
 
-    it("user with no roles cannot Edit a Project they didn't create", async () => {
+    it("user without assignment cannot Edit a Project they didn't create", async () => {
       const response = await checkAuth({
         userId: "random-user",
-        userRoles: [],
         action: "Edit",
         resourceType: "Project",
         resourceId: "proj-1",
@@ -392,7 +357,7 @@ describe("Phase 1: Organization Hierarchy Authorization", () => {
   describe("Hierarchy: Site-Level Access (Alice)", () => {
     /**
      * Alice's Assignment:
-     * - Role: coordinator
+     * - Template: coordinator
      * - Target: Site::portland-manufacturing
      *
      * Expected access:
@@ -416,7 +381,6 @@ describe("Phase 1: Organization Hierarchy Authorization", () => {
     it("Alice can View her assigned Site", async () => {
       const response = await checkAuth({
         userId: "alice@example.com",
-        userRoles: [],
         action: "View",
         resourceType: "Site",
         resourceId: "portland-manufacturing",
@@ -428,7 +392,6 @@ describe("Phase 1: Organization Hierarchy Authorization", () => {
     it("Alice can Edit Projects in her Site (coordinator has Edit)", async () => {
       const response = await checkAuth({
         userId: "alice@example.com",
-        userRoles: [],
         action: "Edit",
         resourceType: "Project",
         resourceId: "hvac-project",
@@ -441,7 +404,6 @@ describe("Phase 1: Organization Hierarchy Authorization", () => {
     it("Alice can Create Projects in her Site (coordinator has Create)", async () => {
       const response = await checkAuth({
         userId: "alice@example.com",
-        userRoles: [],
         action: "Create",
         resourceType: "Project",
         resourceId: "new-project",
@@ -455,7 +417,6 @@ describe("Phase 1: Organization Hierarchy Authorization", () => {
       // Site-level assignment does NOT cascade to sibling sites
       const response = await checkAuth({
         userId: "alice@example.com",
-        userRoles: [],
         action: "View",
         resourceType: "Site",
         resourceId: "seattle-hq",
@@ -467,7 +428,6 @@ describe("Phase 1: Organization Hierarchy Authorization", () => {
     it("Alice CANNOT access boston-office (different Region)", async () => {
       const response = await checkAuth({
         userId: "alice@example.com",
-        userRoles: [],
         action: "View",
         resourceType: "Site",
         resourceId: "boston-office",
@@ -480,7 +440,7 @@ describe("Phase 1: Organization Hierarchy Authorization", () => {
   describe("Hierarchy: Region-Level Access (Dan)", () => {
     /**
      * Dan's Assignment:
-     * - Role: contributor
+     * - Template: contributor
      * - Target: Region::10 (West Region)
      *
      * Expected access:
@@ -508,7 +468,6 @@ describe("Phase 1: Organization Hierarchy Authorization", () => {
     it("Dan can View portland-manufacturing (Site in West Region)", async () => {
       const response = await checkAuth({
         userId: "dan@cascade.com",
-        userRoles: [],
         action: "View",
         resourceType: "Site",
         resourceId: "portland-manufacturing",
@@ -520,7 +479,6 @@ describe("Phase 1: Organization Hierarchy Authorization", () => {
     it("Dan can Edit seattle-hq (also in West Region)", async () => {
       const response = await checkAuth({
         userId: "dan@cascade.com",
-        userRoles: [],
         action: "Edit",
         resourceType: "Site",
         resourceId: "seattle-hq",
@@ -532,7 +490,6 @@ describe("Phase 1: Organization Hierarchy Authorization", () => {
     it("Dan can Edit Projects in West Region sites", async () => {
       const response = await checkAuth({
         userId: "dan@cascade.com",
-        userRoles: [],
         action: "Edit",
         resourceType: "Project",
         resourceId: "hvac-project",
@@ -546,7 +503,6 @@ describe("Phase 1: Organization Hierarchy Authorization", () => {
       // Region-level assignment does NOT cross to other regions
       const response = await checkAuth({
         userId: "dan@cascade.com",
-        userRoles: [],
         action: "View",
         resourceType: "Site",
         resourceId: "boston-office",
@@ -558,7 +514,6 @@ describe("Phase 1: Organization Hierarchy Authorization", () => {
     it("Dan CANNOT access goodwill-happy-valley (different Organization)", async () => {
       const response = await checkAuth({
         userId: "dan@cascade.com",
-        userRoles: [],
         action: "View",
         resourceType: "Site",
         resourceId: "goodwill-happy-valley",
@@ -568,10 +523,9 @@ describe("Phase 1: Organization Hierarchy Authorization", () => {
     });
 
     it("Dan CANNOT Delete (contributor only has View + Edit)", async () => {
-      // Contributor role doesn't include Delete permission
+      // Contributor template doesn't include Delete permission
       const response = await checkAuth({
         userId: "dan@cascade.com",
-        userRoles: [],
         action: "Delete",
         resourceType: "Site",
         resourceId: "portland-manufacturing",
@@ -584,7 +538,7 @@ describe("Phase 1: Organization Hierarchy Authorization", () => {
   describe("Hierarchy: Organization-Level Access (Eve)", () => {
     /**
      * Eve's Assignment:
-     * - Role: viewer
+     * - Template: viewer
      * - Target: Organization::1 (Cascade Energy)
      *
      * Expected access:
@@ -613,7 +567,6 @@ describe("Phase 1: Organization Hierarchy Authorization", () => {
     it("Eve can View portland-manufacturing (West Region → Cascade)", async () => {
       const response = await checkAuth({
         userId: "eve@cascade.com",
-        userRoles: [],
         action: "View",
         resourceType: "Site",
         resourceId: "portland-manufacturing",
@@ -626,7 +579,6 @@ describe("Phase 1: Organization Hierarchy Authorization", () => {
       // Organization-level access spans ALL regions within that org
       const response = await checkAuth({
         userId: "eve@cascade.com",
-        userRoles: [],
         action: "View",
         resourceType: "Site",
         resourceId: "boston-office",
@@ -638,7 +590,6 @@ describe("Phase 1: Organization Hierarchy Authorization", () => {
     it("Eve can View Projects in any Cascade site", async () => {
       const response = await checkAuth({
         userId: "eve@cascade.com",
-        userRoles: [],
         action: "View",
         resourceType: "Project",
         resourceId: "east-coast-project",
@@ -652,7 +603,6 @@ describe("Phase 1: Organization Hierarchy Authorization", () => {
       // Viewer template only permits View action
       const response = await checkAuth({
         userId: "eve@cascade.com",
-        userRoles: [],
         action: "Edit",
         resourceType: "Site",
         resourceId: "portland-manufacturing",
@@ -665,7 +615,6 @@ describe("Phase 1: Organization Hierarchy Authorization", () => {
       // Organization boundary is absolute
       const response = await checkAuth({
         userId: "eve@cascade.com",
-        userRoles: [],
         action: "View",
         resourceType: "Site",
         resourceId: "goodwill-happy-valley",
@@ -680,7 +629,7 @@ describe("Phase 1: Organization Hierarchy Authorization", () => {
    * SECTION 6: PERMISSION LEVEL CAPABILITIES
    * ════════════════════════════════════════════════════════════════════════════
    *
-   * This section documents what each permission level (role) can do when
+   * This section documents what each permission level can do when
    * assigned to a resource. Permission levels form a hierarchy:
    *
    *   Viewer → Contributor → Champion → Facilitator → Coordinator → Administrator
@@ -697,14 +646,10 @@ describe("Phase 1: Organization Hierarchy Authorization", () => {
    * | Administrator|  ✓   |  ✓   |  ✓     |  ✓     |  ✓    |
    */
   describe("Permission Level Capabilities", () => {
-    // These tests use globalAdmin with different simulated permission levels
-    // to demonstrate what each level allows
-
     it("Viewer can only View", async () => {
-      // Testing against a user with viewer assignment
+      // Testing against a user with viewer assignment (Eve)
       const viewResponse = await checkAuth({
         userId: "eve@cascade.com", // Has viewer on Cascade org
-        userRoles: [],
         action: "View",
         resourceType: "Site",
         resourceId: "portland-manufacturing",
@@ -713,7 +658,6 @@ describe("Phase 1: Organization Hierarchy Authorization", () => {
 
       const editResponse = await checkAuth({
         userId: "eve@cascade.com",
-        userRoles: [],
         action: "Edit",
         resourceType: "Site",
         resourceId: "portland-manufacturing",
@@ -722,10 +666,9 @@ describe("Phase 1: Organization Hierarchy Authorization", () => {
     });
 
     it("Contributor can View and Edit", async () => {
-      // Testing against a user with contributor assignment
+      // Testing against a user with contributor assignment (Dan)
       const viewResponse = await checkAuth({
         userId: "dan@cascade.com", // Has contributor on West Region
-        userRoles: [],
         action: "View",
         resourceType: "Site",
         resourceId: "portland-manufacturing",
@@ -734,7 +677,6 @@ describe("Phase 1: Organization Hierarchy Authorization", () => {
 
       const editResponse = await checkAuth({
         userId: "dan@cascade.com",
-        userRoles: [],
         action: "Edit",
         resourceType: "Site",
         resourceId: "portland-manufacturing",
@@ -743,7 +685,6 @@ describe("Phase 1: Organization Hierarchy Authorization", () => {
 
       const deleteResponse = await checkAuth({
         userId: "dan@cascade.com",
-        userRoles: [],
         action: "Delete",
         resourceType: "Site",
         resourceId: "portland-manufacturing",
@@ -752,10 +693,9 @@ describe("Phase 1: Organization Hierarchy Authorization", () => {
     });
 
     it("Coordinator can View, Edit, Create, and Delete", async () => {
-      // Testing against a user with coordinator assignment
+      // Testing against a user with coordinator assignment (Alice)
       const viewResponse = await checkAuth({
         userId: "alice@example.com", // Has coordinator on portland-manufacturing
-        userRoles: [],
         action: "View",
         resourceType: "Site",
         resourceId: "portland-manufacturing",
@@ -764,7 +704,6 @@ describe("Phase 1: Organization Hierarchy Authorization", () => {
 
       const deleteResponse = await checkAuth({
         userId: "alice@example.com",
-        userRoles: [],
         action: "Delete",
         resourceType: "Project",
         resourceId: "some-project",

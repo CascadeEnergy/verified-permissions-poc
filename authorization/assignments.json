@@ -2,6 +2,19 @@
   "$comment": "Template-linked policy assignments. These create policies that bind users to resources via templates.",
   "assignments": [
     {
+      "id": "GlobalAdmin",
+      "description": "Global admin has full access to the entire system",
+      "template": "administrator",
+      "principal": {
+        "entityType": "Gazebo::User",
+        "entityId": "admin@cascade.com"
+      },
+      "resource": {
+        "entityType": "Gazebo::System",
+        "entityId": "gazebo"
+      }
+    },
+    {
       "id": "AliceCoordinator",
       "description": "Alice is a Coordinator for the Portland Manufacturing site",
       "template": "coordinator",

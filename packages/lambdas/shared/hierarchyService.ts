@@ -24,7 +24,7 @@ export interface HierarchyNode {
   type: "Site" | "Region" | "Organization";
   id: string;
   name?: string;
-  parents: Array<{ type: "Region" | "Organization"; id: string }>;
+  parents: Array<{ type: "Region" | "Organization" | "System"; id: string }>;
 }
 
 export interface HierarchyChain {
@@ -112,13 +112,13 @@ export class MockHierarchyService implements IHierarchyService {
         type: "Organization",
         id: String(company.parentId),
         name: org.name,
-        parents: [],
+        parents: [{ type: "System", id: "gazebo" }],
       });
 
       pathParts.push(org.name, company.name, site.name);
     } else {
       // It's an Organization (no parent)
-      // Chain: Site → Organization
+      // Chain: Site → Organization → System
 
       nodes.push({
         type: "Site",
@@ -131,7 +131,7 @@ export class MockHierarchyService implements IHierarchyService {
         type: "Organization",
         id: parentRef.id,
         name: company.name,
-        parents: [],
+        parents: [{ type: "System", id: "gazebo" }],
       });
 
       pathParts.push(company.name, site.name);

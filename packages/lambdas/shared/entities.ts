@@ -1,4 +1,4 @@
-import { AuthRequest, ROLES, ResourceParents } from "./types";
+import { AuthRequest, ResourceParents } from "./types";
 import { hierarchyService, IHierarchyService, HierarchyNode } from "./hierarchyService";
 
 // Maps parent field names to their Cedar entity types
@@ -42,22 +42,27 @@ export async function buildEntities(
   };
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // 1. Add user entity with role memberships
+  // 1. Add user entity
   // ═══════════════════════════════════════════════════════════════════════════
+  // Note: User access is controlled entirely by template-linked policies in the
+  // policy store. We don't pass "roles" - the policies themselves define who
+  // has access to what resources.
   const userEntity: any = {
     identifier: { entityType: "Gazebo::User", entityId: req.userId },
     attributes: {},
     parents: [],
   };
 
-  if (req.userRoles && req.userRoles.length > 0) {
-    userEntity.parents = req.userRoles.map((role) => ({
-      entityType: "Gazebo::Role",
-      entityId: role,
-    }));
-  }
-
   addEntity(userEntity);
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // 1b. Add System entity (top of hierarchy - all Organizations/Clients belong to it)
+  // ═══════════════════════════════════════════════════════════════════════════
+  addEntity({
+    identifier: { entityType: "Gazebo::System", entityId: "gazebo" },
+    attributes: { name: { string: "Gazebo" } },
+    parents: [],
+  });
 
   // ═══════════════════════════════════════════════════════════════════════════
   // 2. Fetch hierarchy chain FIRST (so we can set parents on resource entity)
@@ -159,16 +164,6 @@ export async function buildEntities(
     }
   }
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  // 5. Add role entities (needed for policy evaluation)
-  // ═══════════════════════════════════════════════════════════════════════════
-  ROLES.forEach((role) => {
-    addEntity({
-      identifier: { entityType: "Gazebo::Role", entityId: role },
-      attributes: { name: { string: role } },
-    });
-  });
-
   return { entityList: entities };
 }
 
@@ -181,21 +176,21 @@ export async function buildEntities(
 export function buildEntitiesSync(req: AuthRequest) {
   const entities: any[] = [];
 
-  // Add user entity with role memberships
+  // Add user entity
   const userEntity: any = {
     identifier: { entityType: "Gazebo::User", entityId: req.userId },
     attributes: {},
     parents: [],
   };
 
-  if (req.userRoles && req.userRoles.length > 0) {
-    userEntity.parents = req.userRoles.map((role) => ({
-      entityType: "Gazebo::Role",
-      entityId: role,
-    }));
-  }
-
   entities.push(userEntity);
+
+  // Add System entity (top of hierarchy)
+  entities.push({
+    identifier: { entityType: "Gazebo::System", entityId: "gazebo" },
+    attributes: { name: { string: "Gazebo" } },
+    parents: [],
+  });
 
   // Add resource entity
   const resourceEntity: any = {
@@ -238,13 +233,6 @@ export function buildEntitiesSync(req: AuthRequest) {
   }
 
   entities.push(resourceEntity);
-
-  ROLES.forEach((role) => {
-    entities.push({
-      identifier: { entityType: "Gazebo::Role", entityId: role },
-      attributes: { name: { string: role } },
-    });
-  });
 
   return { entityList: entities };
 }

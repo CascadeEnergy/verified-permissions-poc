@@ -6,8 +6,8 @@
  * ║  These tests validate authorization for the Program hierarchy, which         ║
  * ║  manages utility programs, cohorts, and site participations:                 ║
  * ║                                                                              ║
- * ║      Client → Program → Cohort → Participation → Site                        ║
- * ║                              └── Cycle                                       ║
+ * ║      System → Client → Program → Cohort → Participation → Site              ║
+ * ║                                       └── Cycle                              ║
  * ║                                                                              ║
  * ║  Key concepts demonstrated:                                                  ║
  * ║  • Reference data (Cycles are broadly readable)                              ║
@@ -24,12 +24,13 @@
  *
  * The Program Layer adds a parallel hierarchy to the Organization hierarchy:
  *
- *   Client (e.g., "Energy Trust of Oregon")
- *   └── Program (e.g., "Industrial SEM")
- *       └── Cohort (e.g., "2024 Cohort")
- *           ├── Cycle (time period, e.g., "FY2024 Q1")
- *           └── Participation (enrollment record)
- *               └── Site (bridge to Org hierarchy)
+ *   System (gazebo)
+ *   └── Client (e.g., "Energy Trust of Oregon")
+ *       └── Program (e.g., "Industrial SEM")
+ *           └── Cohort (e.g., "2024 Cohort")
+ *               ├── Cycle (time period, e.g., "FY2024 Q1")
+ *               └── Participation (enrollment record)
+ *                   └── Site (bridge to Org hierarchy)
  *
  *   Implementer (e.g., "Stillwater Energy")
  *     └── Staff assignments to Cohorts (direct, not via Implementer)
@@ -70,12 +71,12 @@
  *    );
  *    ```
  *
- * 2. Global Admin (same as Phase 1):
+ * 2. Administrator Template (for global admin via System assignment):
  *    ```cedar
  *    permit (
- *        principal in Gazebo::Role::"globalAdmin",
+ *        principal == ?principal,
  *        action,
- *        resource
+ *        resource in ?resource
  *    );
  *    ```
  *
@@ -127,7 +128,6 @@ describe("Phase 2: Program Layer Authorization", () => {
     it("any authenticated user can View Cycles", async () => {
       const response = await checkAuth({
         userId: "random-user",
-        userRoles: [],
         action: "View",
         resourceType: "Cycle",
         resourceId: "fy2024-q1",
@@ -136,25 +136,12 @@ describe("Phase 2: Program Layer Authorization", () => {
       assert.strictEqual(response.body.allowed, true);
     });
 
-    it("user with viewer role can View Cycles", async () => {
+    it("user with viewer assignment can View Cycles", async () => {
       const response = await checkAuth({
-        userId: "viewer-user",
-        userRoles: ["viewer"],
+        userId: "eve@cascade.com",
         action: "View",
         resourceType: "Cycle",
         resourceId: "fy2024-q2",
-      });
-      assert.strictEqual(response.status, 200);
-      assert.strictEqual(response.body.allowed, true);
-    });
-
-    it("administrator role can View Cycles", async () => {
-      const response = await checkAuth({
-        userId: "admin-user",
-        userRoles: ["administrator"],
-        action: "View",
-        resourceType: "Cycle",
-        resourceId: "fy2024-annual",
       });
       assert.strictEqual(response.status, 200);
       assert.strictEqual(response.body.allowed, true);
@@ -164,14 +151,12 @@ describe("Phase 2: Program Layer Authorization", () => {
   describe("Cycles - Edit Restricted", () => {
     /**
      * While Cycles are broadly readable, Edit access requires explicit
-     * permission. Regular users and even role holders without specific
-     * assignment cannot modify Cycles.
+     * permission. Regular users without specific assignment cannot modify Cycles.
      */
 
     it("regular user CANNOT Edit Cycles", async () => {
       const response = await checkAuth({
         userId: "random-user",
-        userRoles: [],
         action: "Edit",
         resourceType: "Cycle",
         resourceId: "fy2024-q1",
@@ -180,11 +165,10 @@ describe("Phase 2: Program Layer Authorization", () => {
       assert.strictEqual(response.body.allowed, false);
     });
 
-    it("coordinator role without assignment CANNOT Edit Cycles", async () => {
-      // Having coordinator role doesn't mean you can edit Cycles
+    it("user with site assignment CANNOT Edit Cycles", async () => {
+      // Having coordinator access on a site doesn't grant Cycle edit access
       const response = await checkAuth({
-        userId: "coord-user",
-        userRoles: ["coordinator"],
+        userId: "alice@example.com",
         action: "Edit",
         resourceType: "Cycle",
         resourceId: "fy2024-q1",
@@ -193,11 +177,10 @@ describe("Phase 2: Program Layer Authorization", () => {
       assert.strictEqual(response.body.allowed, false);
     });
 
-    it("globalAdmin CAN Edit Cycles", async () => {
-      // Only globalAdmin has unrestricted access
+    it("global admin CAN Edit Cycles", async () => {
+      // Admin assigned to System has access to everything
       const response = await checkAuth({
-        userId: "super-admin",
-        userRoles: ["globalAdmin"],
+        userId: "admin@cascade.com",
         action: "Edit",
         resourceType: "Cycle",
         resourceId: "fy2024-q1",
@@ -212,23 +195,13 @@ describe("Phase 2: Program Layer Authorization", () => {
    * SECTION 2: GLOBAL ADMIN ACCESS TO PROGRAM HIERARCHY
    * ════════════════════════════════════════════════════════════════════════════
    *
-   * The globalAdmin role has full access to all Program Layer entities,
-   * just like Organization Layer entities.
-   *
-   * Cedar Policy (same as Phase 1):
-   * ```cedar
-   * permit (
-   *     principal in Gazebo::Role::"globalAdmin",
-   *     action,
-   *     resource
-   * );
-   * ```
+   * Global admin (administrator assigned to System::gazebo) has full access
+   * to all Program Layer entities, just like Organization Layer entities.
    */
   describe("Global Admin - Full Program Hierarchy Access", () => {
-    it("globalAdmin can View Client entities", async () => {
+    it("global admin can View Client entities", async () => {
       const response = await checkAuth({
-        userId: "admin-1",
-        userRoles: ["globalAdmin"],
+        userId: "admin@cascade.com",
         action: "View",
         resourceType: "Client",
         resourceId: "energy-trust",
@@ -237,10 +210,9 @@ describe("Phase 2: Program Layer Authorization", () => {
       assert.strictEqual(response.body.allowed, true);
     });
 
-    it("globalAdmin can Edit Program entities", async () => {
+    it("global admin can Edit Program entities", async () => {
       const response = await checkAuth({
-        userId: "admin-1",
-        userRoles: ["globalAdmin"],
+        userId: "admin@cascade.com",
         action: "Edit",
         resourceType: "Program",
         resourceId: "industrial-sem",
@@ -249,10 +221,9 @@ describe("Phase 2: Program Layer Authorization", () => {
       assert.strictEqual(response.body.allowed, true);
     });
 
-    it("globalAdmin can perform Admin action on Cohort", async () => {
+    it("global admin can perform Admin action on Cohort", async () => {
       const response = await checkAuth({
-        userId: "admin-1",
-        userRoles: ["globalAdmin"],
+        userId: "admin@cascade.com",
         action: "Admin",
         resourceType: "Cohort",
         resourceId: "cohort-2024",
@@ -261,10 +232,9 @@ describe("Phase 2: Program Layer Authorization", () => {
       assert.strictEqual(response.body.allowed, true);
     });
 
-    it("globalAdmin can Delete Participation records", async () => {
+    it("global admin can Delete Participation records", async () => {
       const response = await checkAuth({
-        userId: "admin-1",
-        userRoles: ["globalAdmin"],
+        userId: "admin@cascade.com",
         action: "Delete",
         resourceType: "Participation",
         resourceId: "part-001",
@@ -276,19 +246,18 @@ describe("Phase 2: Program Layer Authorization", () => {
 
   /**
    * ════════════════════════════════════════════════════════════════════════════
-   * SECTION 3: ROLES WITHOUT ASSIGNMENT (PROGRAM HIERARCHY)
+   * SECTION 3: USERS WITHOUT ASSIGNMENT (PROGRAM HIERARCHY)
    * ════════════════════════════════════════════════════════════════════════════
    *
-   * Just like the Organization hierarchy, roles without explicit assignment
+   * Just like the Organization hierarchy, users without explicit assignment
    * to Program entities have no access. The principle is consistent:
    *
-   * Role ≠ Access. Role + Assignment = Access.
+   * No Assignment = No Access.
    */
-  describe("Roles Without Assignment - Program Entities Denied", () => {
-    it("coordinator role without assignment CANNOT View Client", async () => {
+  describe("Users Without Assignment - Program Entities Denied", () => {
+    it("unassigned user CANNOT View Client", async () => {
       const response = await checkAuth({
-        userId: "coord-1",
-        userRoles: ["coordinator"],
+        userId: "unassigned-user@example.com",
         action: "View",
         resourceType: "Client",
         resourceId: "energy-trust",
@@ -297,10 +266,9 @@ describe("Phase 2: Program Layer Authorization", () => {
       assert.strictEqual(response.body.allowed, false);
     });
 
-    it("administrator role without assignment CANNOT View Program", async () => {
+    it("unassigned user CANNOT View Program", async () => {
       const response = await checkAuth({
-        userId: "admin-2",
-        userRoles: ["administrator"],
+        userId: "another-unassigned@example.com",
         action: "View",
         resourceType: "Program",
         resourceId: "industrial-sem",
@@ -309,10 +277,9 @@ describe("Phase 2: Program Layer Authorization", () => {
       assert.strictEqual(response.body.allowed, false);
     });
 
-    it("facilitator role without assignment CANNOT View Cohort", async () => {
+    it("unassigned user CANNOT View Cohort", async () => {
       const response = await checkAuth({
-        userId: "fac-1",
-        userRoles: ["facilitator"],
+        userId: "random-user@example.com",
         action: "View",
         resourceType: "Cohort",
         resourceId: "cohort-2024",
@@ -321,10 +288,9 @@ describe("Phase 2: Program Layer Authorization", () => {
       assert.strictEqual(response.body.allowed, false);
     });
 
-    it("viewer role without assignment CANNOT View Participation", async () => {
+    it("unassigned user CANNOT View Participation", async () => {
       const response = await checkAuth({
-        userId: "viewer-1",
-        userRoles: ["viewer"],
+        userId: "no-access-user@example.com",
         action: "View",
         resourceType: "Participation",
         resourceId: "part-001",
@@ -344,7 +310,7 @@ describe("Phase 2: Program Layer Authorization", () => {
    *
    * - Implementer is METADATA, not an access hierarchy
    * - Staff don't inherit access through their Implementer
-   * - Staff get direct role assignments to Cohorts they work on
+   * - Staff get direct template assignments to Cohorts they work on
    *
    * This prevents "Implementer admin can see all Cohorts" scenarios and
    * provides fine-grained control over which staff can access which Cohorts.
@@ -354,7 +320,6 @@ describe("Phase 2: Program Layer Authorization", () => {
       // Implementer entities are restricted - not broadly readable
       const response = await checkAuth({
         userId: "staff-1",
-        userRoles: [],
         action: "View",
         resourceType: "Implementer",
         resourceId: "stillwater-energy",
@@ -363,10 +328,9 @@ describe("Phase 2: Program Layer Authorization", () => {
       assert.strictEqual(response.body.allowed, false);
     });
 
-    it("globalAdmin CAN View Implementer entities", async () => {
+    it("global admin CAN View Implementer entities", async () => {
       const response = await checkAuth({
-        userId: "admin-1",
-        userRoles: ["globalAdmin"],
+        userId: "admin@cascade.com",
         action: "View",
         resourceType: "Implementer",
         resourceId: "stillwater-energy",
@@ -379,11 +343,9 @@ describe("Phase 2: Program Layer Authorization", () => {
       // Staff must have explicit Cohort assignment
       const response = await checkAuth({
         userId: "stillwater-staff-1",
-        userRoles: [],
         action: "View",
         resourceType: "Cohort",
         resourceId: "cohort-2024",
-        // Note: no assignment to this Cohort
       });
       assert.strictEqual(response.status, 200);
       assert.strictEqual(response.body.allowed, false);
@@ -405,7 +367,6 @@ describe("Phase 2: Program Layer Authorization", () => {
     it("user without Site access CANNOT View Claims", async () => {
       const response = await checkAuth({
         userId: "random-user",
-        userRoles: [],
         action: "View",
         resourceType: "Claim",
         resourceId: "claim-001",
@@ -414,10 +375,9 @@ describe("Phase 2: Program Layer Authorization", () => {
       assert.strictEqual(response.body.allowed, false);
     });
 
-    it("globalAdmin CAN View Claims", async () => {
+    it("global admin CAN View Claims", async () => {
       const response = await checkAuth({
-        userId: "admin-1",
-        userRoles: ["globalAdmin"],
+        userId: "admin@cascade.com",
         action: "View",
         resourceType: "Claim",
         resourceId: "claim-001",
@@ -426,10 +386,9 @@ describe("Phase 2: Program Layer Authorization", () => {
       assert.strictEqual(response.body.allowed, true);
     });
 
-    it("globalAdmin CAN Edit Claims", async () => {
+    it("global admin CAN Edit Claims", async () => {
       const response = await checkAuth({
-        userId: "admin-1",
-        userRoles: ["globalAdmin"],
+        userId: "admin@cascade.com",
         action: "Edit",
         resourceType: "Claim",
         resourceId: "claim-001",
@@ -460,7 +419,7 @@ describe("Phase 2: Program Layer Authorization", () => {
      * FUTURE SCENARIO: Cohort-Level Access
      *
      * Sarah's Assignment:
-     * - Role: facilitator
+     * - Template: facilitator
      * - Target: Cohort::cohort-2024
      *
      * Expected access:
@@ -480,7 +439,7 @@ describe("Phase 2: Program Layer Authorization", () => {
      * FUTURE SCENARIO: Client-Level Access
      *
      * Utility Admin's Assignment:
-     * - Role: administrator
+     * - Template: administrator
      * - Target: Client::energy-trust
      *
      * Expected access:
@@ -502,34 +461,25 @@ describe("Phase 2: Program Layer Authorization", () => {
  * APPENDIX: ENTITY HIERARCHY DIAGRAM
  * ════════════════════════════════════════════════════════════════════════════
  *
- * Organization Hierarchy (Phase 1):
- *
- *   Organization
+ * System (root - all entities ultimately belong here)
  *        │
- *        ▼
- *      Region
- *        │
- *        ▼
- *       Site ─────────────────────┐
- *        │                        │
- *        ▼                        │
- *   Project/Model                 │
- *                                 │
- * Program Hierarchy (Phase 2):    │
- *                                 │
- *      Client                     │
- *        │                        │
- *        ▼                        │
- *     Program                     │
- *        │                        │
- *        ▼                        │
- *      Cohort ──────► Cycle       │
- *        │                        │
- *        ▼                        │
- *  Participation ─────────────────┘
- *        │              (bridge)
- *        ▼
- *      Claim
+ *        ├─────────────────────────┐
+ *        │                         │
+ * Organization Hierarchy:    Program Hierarchy:
+ *        │                         │
+ *   Organization                 Client
+ *        │                         │
+ *        ▼                         ▼
+ *      Region                   Program
+ *        │                         │
+ *        ▼                         ▼
+ *       Site ─────────────────► Cohort ──────► Cycle
+ *        │           (bridge)      │
+ *        ▼                         ▼
+ *   Project/Model            Participation
+ *        │                         │
+ *        ▼                         ▼
+ *      Claim                    Claim
  *
  * Implementer (metadata only, not in hierarchy):
  *
