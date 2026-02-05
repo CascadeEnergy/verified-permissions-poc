@@ -8,6 +8,8 @@ The system has **two independent hierarchies** that meet at the **Site** level t
 
 ```mermaid
 flowchart TB
+    SYS[System<br/><i>root entity</i>]
+
     subgraph org["ORGANIZATIONAL HIERARCHY<br/>(Physical / Structural)"]
         O[Organization<br/><i>e.g. Acme Industries</i>]
         R[Region<br/><i>e.g. West Division</i><br/>optional]
@@ -27,6 +29,9 @@ flowchart TB
         CO --> CY
     end
 
+    SYS --> O
+    SYS --> C
+
     subgraph bridge["PARTICIPATION BRIDGE"]
         P[Participation<br/><i>Site's enrollment in a Cohort</i>]
     end
@@ -43,6 +48,8 @@ flowchart TB
     S --> PRJ
     S --> M
     S --> CL
+
+    style SYS fill:#f8cecc,stroke:#b85450,stroke-width:2px
 ```
 
 ## Hierarchy Relationships
