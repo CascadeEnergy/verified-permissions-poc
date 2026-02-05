@@ -1,39 +1,25 @@
+/**
+ * UI Tests for the POC Application
+ *
+ * These tests verify the UI works correctly. For detailed authorization
+ * scenario documentation, see:
+ * - cypress/e2e/phase1-organization-hierarchy.cy.ts
+ * - cypress/e2e/phase2-program-hierarchy.cy.ts
+ */
 describe("UI Test Scenarios", () => {
   beforeEach(() => {
-    // Visit the app
     cy.visit("/");
   });
 
-  it("should load the Introduction tab by default", () => {
-    cy.contains("h2", "What is AWS Verified Permissions?").should("be.visible");
+  it("should load the Phase 1 Scenarios tab by default", () => {
+    cy.contains("h2", "Phase 1: Organization Hierarchy Scenarios").should("be.visible");
   });
 
-  it("should navigate to Policy Store tab and show sections", () => {
-    cy.contains("button", "Policy Store").click();
-    cy.contains("h2", "Schema").should("be.visible");
-    cy.contains("h2", "Static Policies").should("be.visible");
-    cy.contains("h2", "Policy Templates").should("be.visible");
-    cy.contains("h2", "Template-Linked Policies").should("be.visible");
+  it("should show Run All Scenarios button", () => {
+    cy.contains("button", "Run All Scenarios").should("be.visible");
   });
 
-  it("should expand Schema section and show entity types", () => {
-    cy.contains("button", "Policy Store").click();
-    // Schema should be expanded by default
-    cy.contains("User").should("be.visible");
-    cy.contains("Site").should("be.visible");
-    cy.contains("Project").should("be.visible");
-  });
-
-  describe("Test Scenarios Tab", () => {
-    beforeEach(() => {
-      cy.contains("button", "Test Scenarios").click();
-    });
-
-    it("should show the Test Scenarios page", () => {
-      cy.contains("h2", "Test Scenarios").should("be.visible");
-      cy.contains("button", "Run All Scenarios").should("be.visible");
-    });
-
+  describe("Phase 1 Scenarios Tab", () => {
     it("should run all scenarios and pass", () => {
       // First, set up the test policies for hierarchy scenarios
       cy.contains("button", "Create Test Policies").click();
@@ -88,6 +74,17 @@ describe("UI Test Scenarios", () => {
         cy.contains("DENIED").should("exist");
         cy.get(".check-item.mismatch").should("not.exist");
       });
+    });
+  });
+
+  describe("Phase 2 Scenarios Tab", () => {
+    beforeEach(() => {
+      cy.contains("button", "Phase 2 Scenarios").click();
+    });
+
+    it("should show the Phase 2 Scenarios page", () => {
+      cy.contains("h2", "Phase 2: Program Layer Test Scenarios").should("be.visible");
+      cy.contains("button", "Run All Phase 2 Scenarios").should("be.visible");
     });
   });
 });

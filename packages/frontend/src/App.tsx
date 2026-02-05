@@ -1,14 +1,12 @@
 import { useState } from "react";
-import { Introduction } from "./components/Introduction";
-import { PolicyStoreViewer } from "./components/PolicyStoreViewer";
 import { ScenarioRunner } from "./components/ScenarioRunner";
 import { Phase2ScenarioRunner } from "./components/Phase2ScenarioRunner";
 import { Playground } from "./components/Playground";
 
-type Tab = "intro" | "policystore" | "scenarios" | "phase2" | "playground";
+type Tab = "scenarios" | "phase2" | "playground";
 
 function App() {
-  const [activeTab, setActiveTab] = useState<Tab>("intro");
+  const [activeTab, setActiveTab] = useState<Tab>("scenarios");
   const apiUrl = import.meta.env.VITE_API_URL;
 
   return (
@@ -27,18 +25,6 @@ function App() {
       )}
 
       <div className="tabs">
-        <button
-          className={`tab ${activeTab === "intro" ? "active" : ""}`}
-          onClick={() => setActiveTab("intro")}
-        >
-          Introduction
-        </button>
-        <button
-          className={`tab ${activeTab === "policystore" ? "active" : ""}`}
-          onClick={() => setActiveTab("policystore")}
-        >
-          Policy Store
-        </button>
         <button
           className={`tab ${activeTab === "scenarios" ? "active" : ""}`}
           onClick={() => setActiveTab("scenarios")}
@@ -59,8 +45,6 @@ function App() {
         </button>
       </div>
 
-      {activeTab === "intro" && <Introduction />}
-      {activeTab === "policystore" && <PolicyStoreViewer />}
       {activeTab === "scenarios" && <ScenarioRunner />}
       {activeTab === "phase2" && <Phase2ScenarioRunner />}
       {activeTab === "playground" && <Playground />}
