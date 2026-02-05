@@ -1,0 +1,70 @@
+{
+  "$comment": "Template-linked policy assignments. These create policies that bind users to resources via templates.",
+  "assignments": [
+    {
+      "id": "AliceCoordinator",
+      "description": "Alice is a Coordinator for the Portland Manufacturing site",
+      "template": "coordinator",
+      "principal": {
+        "entityType": "Gazebo::User",
+        "entityId": "alice@example.com"
+      },
+      "resource": {
+        "entityType": "Gazebo::Site",
+        "entityId": "portland-manufacturing"
+      }
+    },
+    {
+      "id": "BobChampion",
+      "description": "Bob is a Champion for the Portland Manufacturing site",
+      "template": "champion",
+      "principal": {
+        "entityType": "Gazebo::User",
+        "entityId": "bob@example.com"
+      },
+      "resource": {
+        "entityType": "Gazebo::Site",
+        "entityId": "portland-manufacturing"
+      }
+    },
+    {
+      "id": "CarolViewer",
+      "description": "Carol is a Viewer for the Seattle Warehouse site",
+      "template": "viewer",
+      "principal": {
+        "entityType": "Gazebo::User",
+        "entityId": "carol@example.com"
+      },
+      "resource": {
+        "entityType": "Gazebo::Site",
+        "entityId": "seattle-warehouse"
+      }
+    },
+    {
+      "id": "DanContributor",
+      "description": "Dan is a Contributor for the West Region (access to all sites in region)",
+      "template": "contributor",
+      "principal": {
+        "entityType": "Gazebo::User",
+        "entityId": "dan@cascade.com"
+      },
+      "resource": {
+        "entityType": "Gazebo::Region",
+        "entityId": "10"
+      }
+    },
+    {
+      "id": "EveViewer",
+      "description": "Eve is a Viewer for Cascade Energy (access to all sites in org)",
+      "template": "viewer",
+      "principal": {
+        "entityType": "Gazebo::User",
+        "entityId": "eve@cascade.com"
+      },
+      "resource": {
+        "entityType": "Gazebo::Organization",
+        "entityId": "1"
+      }
+    }
+  ]
+}

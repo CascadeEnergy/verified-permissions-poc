@@ -105,97 +105,43 @@ export class PocStack extends cdk.Stack {
       description: "Administrator (Cascade only): Full admin access to all features",
     });
 
-    // Example template-linked policies (user → resource assignments)
-    // These demonstrate how roles are assigned to specific users for specific sites
+    // Map template names to template resources
+    const templateMap: Record<string, verifiedpermissions.CfnPolicyTemplate> = {
+      viewer: viewerTemplate,
+      contributor: contributorTemplate,
+      champion: championTemplate,
+      facilitator: facilitatorTemplate,
+      coordinator: coordinatorTemplate,
+      administrator: administratorTemplate,
+    };
 
-    // Alice is a Coordinator for the Portland Manufacturing site
-    new verifiedpermissions.CfnPolicy(this, "ExampleAliceCoordinator", {
-      policyStoreId: policyStore.attrPolicyStoreId,
-      definition: {
-        templateLinked: {
-          policyTemplateId: coordinatorTemplate.attrPolicyTemplateId,
-          principal: {
-            entityType: "Gazebo::User",
-            entityId: "alice@example.com",
-          },
-          resource: {
-            entityType: "Gazebo::Site",
-            entityId: "portland-manufacturing",
+    // Load and create template-linked policies (user → resource assignments)
+    // These are defined in /authorization/assignments.json
+    const assignmentsPath = path.join(__dirname, "../../../authorization/assignments.json");
+    const assignmentsData = JSON.parse(fs.readFileSync(assignmentsPath, "utf-8"));
+
+    assignmentsData.assignments.forEach((assignment: {
+      id: string;
+      description: string;
+      template: string;
+      principal: { entityType: string; entityId: string };
+      resource: { entityType: string; entityId: string };
+    }) => {
+      const template = templateMap[assignment.template];
+      if (!template) {
+        throw new Error(`Unknown template "${assignment.template}" in assignment "${assignment.id}"`);
+      }
+
+      new verifiedpermissions.CfnPolicy(this, `Assignment${assignment.id}`, {
+        policyStoreId: policyStore.attrPolicyStoreId,
+        definition: {
+          templateLinked: {
+            policyTemplateId: template.attrPolicyTemplateId,
+            principal: assignment.principal,
+            resource: assignment.resource,
           },
         },
-      },
-    });
-
-    // Bob is a Champion for the Portland Manufacturing site
-    new verifiedpermissions.CfnPolicy(this, "ExampleBobChampion", {
-      policyStoreId: policyStore.attrPolicyStoreId,
-      definition: {
-        templateLinked: {
-          policyTemplateId: championTemplate.attrPolicyTemplateId,
-          principal: {
-            entityType: "Gazebo::User",
-            entityId: "bob@example.com",
-          },
-          resource: {
-            entityType: "Gazebo::Site",
-            entityId: "portland-manufacturing",
-          },
-        },
-      },
-    });
-
-    // Carol is a Viewer for the Seattle Warehouse site
-    new verifiedpermissions.CfnPolicy(this, "ExampleCarolViewer", {
-      policyStoreId: policyStore.attrPolicyStoreId,
-      definition: {
-        templateLinked: {
-          policyTemplateId: viewerTemplate.attrPolicyTemplateId,
-          principal: {
-            entityType: "Gazebo::User",
-            entityId: "carol@example.com",
-          },
-          resource: {
-            entityType: "Gazebo::Site",
-            entityId: "seattle-warehouse",
-          },
-        },
-      },
-    });
-
-    // Dan is a Facilitator for the entire West Region (access to all sites in region)
-    new verifiedpermissions.CfnPolicy(this, "ExampleDanFacilitator", {
-      policyStoreId: policyStore.attrPolicyStoreId,
-      definition: {
-        templateLinked: {
-          policyTemplateId: facilitatorTemplate.attrPolicyTemplateId,
-          principal: {
-            entityType: "Gazebo::User",
-            entityId: "dan@cascade.com",
-          },
-          resource: {
-            entityType: "Gazebo::Region",
-            entityId: "west-region",
-          },
-        },
-      },
-    });
-
-    // Eve is a Contributor for the Portland Manufacturing site
-    new verifiedpermissions.CfnPolicy(this, "ExampleEveContributor", {
-      policyStoreId: policyStore.attrPolicyStoreId,
-      definition: {
-        templateLinked: {
-          policyTemplateId: contributorTemplate.attrPolicyTemplateId,
-          principal: {
-            entityType: "Gazebo::User",
-            entityId: "eve@example.com",
-          },
-          resource: {
-            entityType: "Gazebo::Site",
-            entityId: "portland-manufacturing",
-          },
-        },
-      },
+      });
     });
 
     // Permissions API Lambda
